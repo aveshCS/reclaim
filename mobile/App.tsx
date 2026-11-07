@@ -4,6 +4,7 @@ import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LoadingState } from './src/components';
 import { OnboardingFlow } from './src/features/onboarding/OnboardingFlow';
+import { FocusProvider } from './src/features/focus/FocusContext';
 import { RootTabs } from './src/navigation/RootTabs';
 import { SettingsProvider, useSettings } from './src/state/SettingsContext';
 import { colors } from './src/theme/tokens';
@@ -52,7 +53,9 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" />
       <SettingsProvider>
-        <Gate />
+        <FocusProvider>
+          <Gate />
+        </FocusProvider>
       </SettingsProvider>
     </SafeAreaProvider>
   );

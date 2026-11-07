@@ -8,7 +8,7 @@ Last updated: 2026-11-07
 - [x] Phase 2 — Onboarding, preferences, consent (verified on Android 15 emulator; see below)
 - [x] Phase 3 — Android Usage Access native integration (verified on emulator; developer confirmed working on their physical phone 2026-11-07)
 - [x] Phase 4 — Local-first dashboard (verified on emulator; baseline comparison verified in tests only, see below)
-- [ ] Phase 5 — Focus sessions
+- [x] Phase 5 — Focus sessions (verified on emulator incl. real process kill; backend sync waits for Phase 7)
 - [ ] Phase 6 — Cognitive Gym (30+ reviewed exercises)
 - [ ] Phase 7 — Backend + DB
 - [ ] Phase 8 — Rules-based coach
@@ -149,3 +149,26 @@ Known limits (also in docs/PRIVACY_AND_PLATFORM.md): Android event history is li
 
 Not verified on a device: baseline comparison and suggestions (emulator has <1 day of history; covered by unit and UI tests with simulated history), multi-day retention over real days, midnight/DST rollover.
 Two layout bugs found on the emulator and fixed (header overlap, wrapped button text not centred).
+
+## Phase 5 — Focus sessions + developer feedback (2026-11-07, branch phase-5-focus)
+Developer feedback addressed:
+1. Onboarding questions vs answers were hard to tell apart, and multi-select wasn't always stated. Now: Pip's lines are blue speech bubbles with a tail and a "PIP" label; answers are white outlined cards with a visible radio circle (single) or square checkbox (multi); every answer group has a "Choose one" / "Choose any that apply" / "Type your answer" tag; multi-select questions also say so in Pip's words.
+2. Pip felt distant on the dashboard. Now `PipCompanion` leads Home: speech bubble with context-aware lines (morning, late night, focusing, paused, focused today), tap to get a jump + expression change + friendly line, growth stage and progress bar driven by real saved focus minutes ("25 min to Sprout"), today's focus minutes/sessions, "Grow together · N min" button. Pip encourages but never guilts (no sad Pip about usage).
+
+Phase 5:
+- `focusModel.ts` (pure, tested): timestamp-based timing (accumulated + now - resumedAt) so it survives background, sleep and process death; ignores backwards clock jumps; clamps 5-180 min; one active session; finish is idempotent (saved once, keyed by id); sessions under 1 min not saved; completed sessions end at their planned end even if noticed later; first reflection wins; growth stages Seed 0 / Sprout 25 / Seedling 100 / Young plant 250 / Leafy 500 / Blooming 1000 min, never shrinks; defensive parse.
+- `FocusContext` persists to on-device storage, finishes due sessions on load and on resume, display tick only while running.
+- Focus screen: setup, running, paused, end early with confirm, completion with Pip and optional reflection (progress, self-reported interruptions, note).
+- Every saved session has `sync: 'pending'` so Phase 7 can upload each exactly once. No backend yet.
+- Not done: notifications (plan says don't ask until needed; deliberate, deferred), quiet hours.
+
+| Check | Result |
+|---|---|
+| `npm test` | 87/87 (11 suites), run twice |
+| typecheck / lint | pass / pass |
+| Emulator: onboarding bubbles/hints/checkbox vs radio | verified by screenshots |
+| Emulator: Pip tap reaction, growth stage, speech | verified |
+| Emulator: real force-stop during a session, 55 s dead, relaunch | timer showed 12:50 at 132 s after start (correct) |
+| Emulator: end early -> confirm -> reflection -> Home | saved once; Home showed 2 min, Pip cheering |
+
+Not verified: a full 15-min completion on the device (covered by tests incl. finishing while the app was closed), phone reboot mid-session, time-zone change, haptics. Emulator System UI hung once (Android's process, not RECLAIM); emulator was rebooted.

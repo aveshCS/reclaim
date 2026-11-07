@@ -21,6 +21,7 @@ import { haptic } from '../../utils/haptics';
 import { formatClock, formatDuration, localDateKey } from '../../utils/time';
 import { DashboardData, useDashboard } from '../dashboard/useDashboard';
 import { WeekBars } from '../dashboard/WeekBars';
+import { PipCompanion } from './PipCompanion';
 
 function greeting(date: Date): string {
   const h = date.getHours();
@@ -297,8 +298,6 @@ export function HomeScreen() {
       break;
   }
 
-  const showSprout = state.kind !== 'ready';
-
   return (
     <ScreenContainer>
       <FadeIn>
@@ -309,33 +308,20 @@ export function HomeScreen() {
         </Txt>
       </FadeIn>
 
-      {showSprout ? (
-        <FadeIn delay={100}>
-          <Card tone="butter" style={styles.hero}>
-            <Pip size={150} mood="happy" growth={0} />
-            <Txt variant="title" center>
-              Your sprout is still tiny
-            </Txt>
-            <Txt center>
-              It grows with every minute you spend in focus. Ready for the first
-              one?
-            </Txt>
-            <View style={styles.full}>
-              <Button
-                label="Start a focus session"
-                onPress={() => navigation.navigate('Focus')}
-              />
-            </View>
-          </Card>
-        </FadeIn>
-      ) : null}
+      <FadeIn delay={100}>
+        <PipCompanion
+          name={name}
+          defaultMinutes={settings.focusMinutes}
+          onFocus={() => navigation.navigate('Focus')}
+        />
+      </FadeIn>
 
       {appTime ? <FadeIn delay={150}>{appTime}</FadeIn> : null}
 
       <FadeIn delay={200} style={styles.tiles}>
         <Tile
           title="Focus"
-          body={state.kind === 'ready' ? 'Start a session' : 'Breathe first?'}
+          body="Start a session"
           icon="⏳"
           tone={colors.orangeSoft}
           label="Start a focus session"
@@ -392,10 +378,6 @@ export function HomeScreen() {
           </Card>
         </FadeIn>
       ) : null}
-
-      <Txt variant="caption" center>
-        Focus sessions are not saved yet, so focus minutes aren't shown here.
-      </Txt>
 
       <BreathingPause visible={pauseOpen} onClose={() => setPauseOpen(false)} />
     </ScreenContainer>

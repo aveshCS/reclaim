@@ -81,6 +81,9 @@ export function GuideChat({
         <Pip size={pipSize} mood={mood} growth={growth} talking={!finished} />
       ) : null}
       <View style={styles.bubbles}>
+        <Txt variant="label" color={colors.inkSoft} style={styles.who}>
+          Pip
+        </Txt>
         {visible.map((text, i) =>
           text === null ? null : (
             <View
@@ -88,8 +91,9 @@ export function GuideChat({
               style={[styles.bubble, i === 0 && styles.firstBubble]}
               accessible
               accessibilityLiveRegion="polite"
-              accessibilityLabel={messages[i]}
+              accessibilityLabel={`Pip says: ${messages[i]}`}
             >
+              {i === 0 ? <View style={styles.tail} /> : null}
               <Txt variant="bodyBold" style={styles.text}>
                 {text}
               </Txt>
@@ -103,15 +107,30 @@ export function GuideChat({
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  bubbles: { flex: 1, gap: 8, paddingTop: 6 },
+  bubbles: { flex: 1, gap: 8 },
+  who: { fontSize: 11, marginLeft: 4 },
+  // Pip's lines are soft blue speech bubbles with no shadow, so they never look like
+  // the white, outlined answer cards the user taps.
   bubble: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.skySoft,
     borderWidth: 2,
-    borderColor: colors.line,
-    borderRadius: radius.md,
+    borderColor: colors.sky,
+    borderRadius: radius.lg,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  firstBubble: { borderTopLeftRadius: 4 },
+  firstBubble: { borderTopLeftRadius: 6 },
+  tail: {
+    position: 'absolute',
+    left: -9,
+    top: 10,
+    width: 14,
+    height: 14,
+    backgroundColor: colors.skySoft,
+    borderLeftWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: colors.sky,
+    transform: [{ rotate: '45deg' }],
+  },
   text: { fontSize: 16, lineHeight: 23 },
 });

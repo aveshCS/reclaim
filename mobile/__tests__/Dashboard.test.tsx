@@ -90,7 +90,7 @@ describe('Home dashboard (Phase 4)', () => {
   it('without app time: shows the sprout and an optional setup card, reads nothing', async () => {
     await seed({});
     await render(<App />);
-    expect(await screen.findByText('Your sprout is still tiny')).toBeTruthy();
+    expect(await screen.findByLabelText('Grow together · 25 min')).toBeTruthy();
     expect(
       screen.getByText('Want to see time in the apps you choose?'),
     ).toBeTruthy();

@@ -38,13 +38,13 @@ describe('main app (onboarding already done)', () => {
   it('renders Home and navigates through all five tabs', async () => {
     await seedCompleted();
     await render(<App />);
-    expect(await screen.findByText('Your sprout is still tiny')).toBeTruthy();
+    expect(await screen.findByLabelText('Grow together · 25 min')).toBeTruthy();
     const expectations: [string, string][] = [
       ['Focus', 'One thing at a time.'],
       ['Train', 'Think deeper.'],
       ['Insights', 'Progress, not perfection.'],
       ['Profile', 'Your settings.'],
-      ['Home', 'Your sprout is still tiny'],
+      ['Home', 'Grow together · 25 min'],
     ];
     for (const [tab, heading] of expectations) {
       await press(`${tab} tab`);
@@ -103,7 +103,7 @@ describe('onboarding with Pip', () => {
     await press('Skip'); // pledge
     await press("Let's begin");
 
-    expect(await screen.findByText('Your sprout is still tiny')).toBeTruthy();
+    expect(await screen.findByLabelText('Grow together · 25 min')).toBeTruthy();
     const saved = await stored();
     expect(saved.onboarding.completed).toBe(true);
     expect(saved.consents).toEqual([]);

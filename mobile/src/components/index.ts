@@ -1,3 +1,4 @@
+export { AnswerHint } from './AnswerHint';
 export { BreathingPause } from './BreathingPause';
 export { Button } from './Button';
 export { Card } from './Card';

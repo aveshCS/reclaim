@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 import {
+  AnswerHint,
   Button,
+  Card,
   Chip,
   FadeIn,
   Pip,
+  ProgressBar,
   ProgressRing,
   ScreenContainer,
   SectionHeading,
@@ -12,64 +15,57 @@ import {
 } from '../../components';
 import { useSettings } from '../../state/SettingsContext';
 import { colors, fonts, MIN_TOUCH_TARGET, radius } from '../../theme/tokens';
-import { haptic } from '../../utils/haptics';
+import { formatDuration } from '../../utils/time';
+import { useFocus } from './FocusContext';
+import {
+  elapsedMs,
+  growthFor,
+  Reflection,
+  remainingMs,
+  totalMinutes,
+} from './focusModel';
 
 const BASE_PRESETS = [15, 25, 45];
 
-function formatTime(totalSeconds: number) {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
+function clock(ms: number) {
+  const total = Math.ceil(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-// NOTE (Phase 5): this timer is in-memory only. Background-safe, persisted
-// sessions are implemented in Phase 5.
-export function FocusScreen() {
+function SproutProgress({ extraMin = 0 }: { extraMin?: number }) {
+  const { state } = useFocus();
+  const g = growthFor(totalMinutes(state.history) + extraMin);
+  return (
+    <View style={styles.sprout}>
+      <View style={styles.sproutHead}>
+        <Txt variant="bodyBold">Pip's sprout: {g.stage}</Txt>
+        {g.minutesToNext !== null ? (
+          <Txt variant="caption">
+            {g.minutesToNext} min to {g.nextStage}
+          </Txt>
+        ) : (
+          <Txt variant="caption">Fully grown</Txt>
+        )}
+      </View>
+      <ProgressBar value={g.stageProgress} />
+    </View>
+  );
+}
+
+function Setup() {
   const { settings } = useSettings();
+  const f = useFocus();
   const defaultMinutes = settings.focusMinutes;
   const [minutes, setMinutes] = useState(defaultMinutes);
-  const [secondsLeft, setSecondsLeft] = useState(defaultMinutes * 60);
-  const [running, setRunning] = useState(false);
   const [intention, setIntention] = useState('');
-
-  // Follow the default length chosen in onboarding/Profile, unless a session is running.
-  useEffect(() => {
-    if (!running) {
-      setMinutes(defaultMinutes);
-      setSecondsLeft(defaultMinutes * 60);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultMinutes]);
-
-  useEffect(() => {
-    if (!running) {
-      return;
-    }
-    const timer = setInterval(
-      () => setSecondsLeft(s => Math.max(0, s - 1)),
-      1000,
-    );
-    return () => clearInterval(timer);
-  }, [running]);
-
-  useEffect(() => {
-    if (secondsLeft === 0 && running) {
-      setRunning(false);
-      haptic.success();
-    }
-  }, [secondsLeft, running]);
-
-  const select = (m: number) => {
-    setMinutes(m);
-    setSecondsLeft(m * 60);
-    setRunning(false);
-  };
+  useEffect(() => setMinutes(defaultMinutes), [defaultMinutes]);
 
   const presets = BASE_PRESETS.includes(defaultMinutes)
     ? BASE_PRESETS
     : [...BASE_PRESETS, defaultMinutes].sort((a, b) => a - b);
-  const done = secondsLeft === 0;
-  const total = minutes * 60;
+  const g = growthFor(totalMinutes(f.state.history));
 
   return (
     <ScreenContainer>
@@ -78,35 +74,32 @@ export function FocusScreen() {
         title="One thing at a time."
         subtitle="Give your attention to something that matters."
       />
-
-      <FadeIn delay={100} style={styles.ringWrap}>
+      <FadeIn delay={80} style={styles.ringWrap}>
         <View accessible accessibilityRole="timer">
-          <ProgressRing size={286} progress={1 - secondsLeft / total}>
-            {done ? (
-              <Pip size={150} mood="cheer" growth={0.4} />
-            ) : (
-              <>
-                <Txt variant="display" style={styles.time}>
-                  {formatTime(secondsLeft)}
-                </Txt>
-                <Txt
-                  variant="label"
-                  color={running ? colors.leaf : colors.orange}
-                >
-                  {running ? 'In focus' : 'Ready'}
-                </Txt>
-              </>
-            )}
+          <ProgressRing size={260} progress={0}>
+            <Txt variant="display" style={styles.time}>
+              {clock(minutes * 60_000)}
+            </Txt>
+            <Txt variant="label">Ready</Txt>
           </ProgressRing>
         </View>
-        {done ? (
-          <Txt variant="heading" center>
-            Done! That was {minutes} minutes of your attention, given on
-            purpose.
-          </Txt>
-        ) : null}
       </FadeIn>
 
+      <Card tone="butter" style={styles.pipRow}>
+        <Pip size={76} mood="happy" growth={g.value} bob={false} />
+        <Txt color={colors.ink} style={styles.flex}>
+          {g.minutesToNext !== null
+            ? `Ready when you are. ${Math.min(
+                minutes,
+                g.minutesToNext,
+              )} of the ${g.minutesToNext} minutes I need to reach ${
+                g.nextStage
+              }!`
+            : "Ready when you are. I'm fully grown, but I still love focusing with you."}
+        </Txt>
+      </Card>
+
+      <AnswerHint kind="one" />
       <View style={styles.row}>
         {presets.map(m => (
           <Chip
@@ -114,7 +107,7 @@ export function FocusScreen() {
             role="radio"
             label={`${m} min`}
             selected={minutes === m}
-            onPress={() => select(m)}
+            onPress={() => setMinutes(m)}
           />
         ))}
       </View>
@@ -128,39 +121,248 @@ export function FocusScreen() {
         placeholder="What will you work on?"
         placeholderTextColor={colors.inkFaint}
         accessibilityLabel="Intention for this session"
+        maxLength={140}
         style={styles.input}
       />
-
       <Button
-        label={
-          running
-            ? 'Pause session'
-            : done
-            ? 'Session complete'
-            : 'Start session'
-        }
-        disabled={done}
-        onPress={() => setRunning(v => !v)}
-      />
-      <Button
-        label={done ? 'Start again' : 'Reset timer'}
-        variant="ghost"
-        onPress={() => {
-          setRunning(false);
-          setSecondsLeft(minutes * 60);
-        }}
+        label="Start session"
+        onPress={() => f.start(minutes, intention)}
       />
       <Txt variant="caption" center>
-        This timer only runs while the app is open. Sessions are not saved yet.
+        Your session keeps time even if you leave the app or lock your phone.
+        RECLAIM doesn't block other apps.
       </Txt>
     </ScreenContainer>
   );
 }
 
+function Running() {
+  const f = useFocus();
+  const a = f.state.active!;
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  const left = remainingMs(a, f.now);
+  const done = elapsedMs(a, f.now);
+  const running = a.status === 'running';
+  const g = growthFor(
+    totalMinutes(f.state.history) + Math.floor(done / 60_000),
+  );
+
+  return (
+    <ScreenContainer>
+      <SectionHeading
+        kicker={running ? 'In focus' : 'Paused'}
+        title={a.intention ? a.intention : 'One thing at a time.'}
+      />
+      <View style={styles.ringWrap}>
+        <View
+          accessible
+          accessibilityRole="timer"
+          accessibilityLabel={`${formatDuration(left)} left`}
+        >
+          <ProgressRing size={260} progress={done / a.plannedMs}>
+            <Txt variant="display" style={styles.time}>
+              {clock(left)}
+            </Txt>
+            <Txt variant="label" color={running ? colors.leaf : colors.orange}>
+              {running ? 'In focus' : 'Paused'}
+            </Txt>
+          </ProgressRing>
+        </View>
+      </View>
+
+      <Card tone={running ? 'leaf' : 'sand'} style={styles.pipRow}>
+        <Pip
+          size={76}
+          mood={running ? 'calm' : 'think'}
+          growth={g.value}
+          bob={running}
+        />
+        <Txt color={colors.ink} style={styles.flex}>
+          {running
+            ? "Shh… I'm growing quietly while you focus."
+            : 'Take the break you need. I’ll be right here.'}
+        </Txt>
+      </Card>
+      <SproutProgress extraMin={Math.floor(done / 60_000)} />
+
+      {running ? (
+        <Button label="Pause" variant="secondary" onPress={f.pause} />
+      ) : (
+        <Button label="Resume" onPress={f.resume} />
+      )}
+
+      {confirmEnd ? (
+        <Card tone="sand">
+          <Txt variant="bodyBold">
+            End now?{' '}
+            {done >= 60_000
+              ? `${formatDuration(done)} will be saved.`
+              : 'Under a minute, so nothing will be saved.'}
+          </Txt>
+          <Button label="Yes, end session" onPress={f.endEarly} />
+          <Button
+            label="Keep going"
+            variant="ghost"
+            onPress={() => setConfirmEnd(false)}
+          />
+        </Card>
+      ) : (
+        <Button
+          label="End early"
+          variant="ghost"
+          onPress={() => setConfirmEnd(true)}
+        />
+      )}
+    </ScreenContainer>
+  );
+}
+
+const PROGRESS: { id: Reflection['progress']; label: string }[] = [
+  { id: 'yes', label: 'Yes, I made progress' },
+  { id: 'some', label: 'Some progress' },
+  { id: 'no', label: 'Not really' },
+];
+const INTERRUPTIONS: { id: Reflection['interruptions']; label: string }[] = [
+  { id: 'none', label: 'None' },
+  { id: 'few', label: 'A few' },
+  { id: 'many', label: 'Many' },
+];
+
+function Finished() {
+  const f = useFocus();
+  const info = f.justFinished!;
+  const record = f.state.history.find(r => r.id === info.id);
+  const [progress, setProgress] = useState<Reflection['progress'] | null>(null);
+  const [interruptions, setInterruptions] = useState<
+    Reflection['interruptions'] | null
+  >(null);
+  const [note, setNote] = useState('');
+
+  if (!record) {
+    return (
+      <ScreenContainer>
+        <SectionHeading kicker="Focus" title="That was a quick one." />
+        <Txt>Sessions under a minute aren't saved.</Txt>
+        <Button label="Okay" onPress={f.dismissFinished} />
+      </ScreenContainer>
+    );
+  }
+
+  const completed = record.status === 'completed';
+  const save = () => {
+    if (progress && interruptions) {
+      f.reflect(record.id, { progress, interruptions, note });
+    }
+    f.dismissFinished();
+  };
+
+  return (
+    <ScreenContainer>
+      <View style={styles.center}>
+        <Pip
+          size={150}
+          mood={completed ? 'cheer' : 'happy'}
+          growth={growthFor(totalMinutes(f.state.history)).value}
+        />
+      </View>
+      <SectionHeading
+        kicker={completed ? 'Session complete' : 'Session ended'}
+        title={
+          completed
+            ? `${formatDuration(record.actualMs)} of focus. Lovely.`
+            : `${formatDuration(record.actualMs)} still counts.`
+        }
+        subtitle={
+          info.whileAway && completed
+            ? 'It finished while you were away. Nothing was lost.'
+            : completed
+            ? 'Thank you for giving it your attention.'
+            : 'Stopping early is fine. Coming back is what matters.'
+        }
+      />
+      <SproutProgress />
+
+      <Card>
+        <Txt variant="heading">Quick reflection (optional)</Txt>
+        <Txt variant="bodyBold">Did you make progress?</Txt>
+        <AnswerHint kind="one" />
+        {PROGRESS.map(p => (
+          <Chip
+            key={p.id}
+            block
+            role="radio"
+            label={p.label}
+            selected={progress === p.id}
+            onPress={() => setProgress(p.id)}
+          />
+        ))}
+        <Txt variant="bodyBold">How many interruptions did you notice?</Txt>
+        <AnswerHint kind="one" />
+        <View style={styles.row}>
+          {INTERRUPTIONS.map(p => (
+            <Chip
+              key={p.id}
+              role="radio"
+              label={p.label}
+              selected={interruptions === p.id}
+              onPress={() => setInterruptions(p.id)}
+            />
+          ))}
+        </View>
+        <TextInput
+          value={note}
+          onChangeText={setNote}
+          placeholder="A note for yourself (optional)"
+          placeholderTextColor={colors.inkFaint}
+          accessibilityLabel="Note about this session"
+          maxLength={500}
+          multiline
+          style={[styles.input, styles.note]}
+        />
+        <Txt variant="caption">
+          Interruptions are what you noticed. RECLAIM doesn't track what you did
+          during the session.
+        </Txt>
+      </Card>
+      <Button
+        label={progress && interruptions ? 'Save reflection' : 'Done'}
+        onPress={save}
+      />
+    </ScreenContainer>
+  );
+}
+
+export function FocusScreen() {
+  const f = useFocus();
+  if (!f.ready) {
+    return (
+      <ScreenContainer>
+        <SectionHeading kicker="Focus" title="One thing at a time." />
+      </ScreenContainer>
+    );
+  }
+  if (f.justFinished) {
+    return <Finished />;
+  }
+  if (f.state.active) {
+    return <Running />;
+  }
+  return <Setup />;
+}
+
 const styles = StyleSheet.create({
-  ringWrap: { alignItems: 'center', gap: 14, marginVertical: 4 },
-  time: { fontSize: 58, lineHeight: 66, fontVariant: ['tabular-nums'] },
+  flex: { flex: 1 },
+  center: { alignItems: 'center' },
+  ringWrap: { alignItems: 'center', marginVertical: 4 },
+  time: { fontSize: 54, lineHeight: 62, fontVariant: ['tabular-nums'] },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  pipRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  sprout: { gap: 8 },
+  sproutHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   input: {
     minHeight: MIN_TOUCH_TARGET + 8,
     backgroundColor: colors.card,
@@ -172,4 +374,5 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.line,
   },
+  note: { minHeight: 80, paddingTop: 12, textAlignVertical: 'top' },
 });

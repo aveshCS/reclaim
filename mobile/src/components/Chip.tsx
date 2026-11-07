@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, MIN_TOUCH_TARGET, radius } from '../theme/tokens';
 import { haptic } from '../utils/haptics';
 
@@ -7,13 +7,35 @@ type Props = {
   label: string;
   selected: boolean;
   onPress: () => void;
-  /** 'checkbox' for multi-select, 'radio' for single-select. */
+  /** 'checkbox' for multi-select (square tick), 'radio' for single-select (round dot). */
   role?: 'checkbox' | 'radio';
   /** Optional leading emoji/glyph, purely decorative. */
   icon?: string;
   /** Stretch to full width (for answer lists). */
   block?: boolean;
 };
+
+/** Visible radio/checkbox mark, so answers read as choices and single vs multi is obvious. */
+function Mark({
+  role,
+  selected,
+}: {
+  role: 'checkbox' | 'radio';
+  selected: boolean;
+}) {
+  if (role === 'radio') {
+    return (
+      <View style={[styles.radio, selected && styles.markOn]}>
+        {selected ? <View style={styles.radioDot} /> : null}
+      </View>
+    );
+  }
+  return (
+    <View style={[styles.box, selected && styles.markOn]}>
+      {selected ? <Text style={styles.tick}>✓</Text> : null}
+    </View>
+  );
+}
 
 export function Chip({
   label,
@@ -41,6 +63,7 @@ export function Chip({
         pressed && styles.pressed,
       ]}
     >
+      <Mark role={role} selected={selected} />
       {icon ? (
         <Text
           style={styles.icon}
@@ -59,11 +82,6 @@ export function Chip({
       >
         {label}
       </Text>
-      {selected && block ? (
-        <Text style={styles.tick} importantForAccessibility="no">
-          ✓
-        </Text>
-      ) : null}
     </Pressable>
   );
 }
@@ -71,10 +89,10 @@ export function Chip({
 const styles = StyleSheet.create({
   chip: {
     minHeight: MIN_TOUCH_TARGET,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     borderRadius: radius.pill,
     borderWidth: 2,
     borderColor: colors.line,
@@ -91,5 +109,37 @@ const styles = StyleSheet.create({
   text: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.ink },
   blockText: { flex: 1, fontSize: 16 },
   selectedText: { fontFamily: fonts.bodyBlack },
-  tick: { fontFamily: fonts.bodyBlack, fontSize: 18, color: colors.ink },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.ink,
+  },
+  box: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markOn: { backgroundColor: colors.card },
+  tick: {
+    fontFamily: fonts.bodyBlack,
+    fontSize: 14,
+    lineHeight: 16,
+    color: colors.ink,
+  },
 });

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import {
+  AnswerHint,
   Button,
   Card,
   Chip,
@@ -79,6 +80,7 @@ export function OnboardingFlow() {
           ],
           body: (
             <>
+              <AnswerHint kind="type" />
               <TextInput
                 value={nameDraft}
                 onChangeText={setNameDraft}
@@ -107,6 +109,7 @@ export function OnboardingFlow() {
           ],
           body: (
             <>
+              <AnswerHint kind="one" />
               {ROLES.map(r => (
                 <Chip
                   key={r.id}
@@ -134,6 +137,7 @@ export function OnboardingFlow() {
           ],
           body: (
             <>
+              <AnswerHint kind="one" />
               <View style={styles.wrapRow}>
                 {EXAMS.map(e => (
                   <Chip
@@ -157,11 +161,12 @@ export function OnboardingFlow() {
         return {
           chat: [
             'Be honest. No judgement here.',
-            'Which of these sound like you lately?',
+            'Which of these sound like you lately? Pick all that apply.',
           ],
           mood: 'think',
           body: (
             <>
+              <AnswerHint kind="many" />
               {STRUGGLES.map(st => (
                 <Chip
                   key={st.id}
@@ -243,6 +248,7 @@ export function OnboardingFlow() {
           ],
           body: (
             <>
+              <AnswerHint kind="one" />
               <View style={styles.wrapRow}>
                 {AGE_BANDS.map(a => (
                   <Chip
@@ -385,6 +391,7 @@ export function OnboardingFlow() {
           ],
           body: (
             <>
+              <AnswerHint kind="many" />
               <View style={styles.wrapRow}>
                 {PRIORITIES.map(p => (
                   <Chip
@@ -420,6 +427,7 @@ export function OnboardingFlow() {
                 ],
           body: (
             <>
+              <AnswerHint kind="one" />
               <FocusDurationPicker
                 minutes={settings.focusMinutes}
                 onChange={s.setFocusMinutes}
@@ -453,6 +461,7 @@ export function OnboardingFlow() {
                   time.
                 </Txt>
               </Card>
+              <AnswerHint kind="one" />
               <Chip
                 block
                 role="radio"
