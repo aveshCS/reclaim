@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">RECLAIM</string>
     <string name="pause_gate_label">RECLAIM mindful pause</string>
-    <string name="pause_gate_summary">Shows a short breathing pause before apps you chose.</string>
-    <string name="pause_gate_description">RECLAIM uses this only to notice when one of the apps you chose opens, so it can show a short pause first. It does not read what is on your screen, your messages or what you type, and it does not control other apps. You can turn it off here at any time.</string>
+    <string name="pause_gate_summary">Shows a short breathing pause before apps or websites you chose, and can count reels.</string>
+    <string name="pause_gate_description">RECLAIM uses this to notice when an app you chose opens, so it can show a short pause first. Only if you switch them on in RECLAIM: it reads the address bar of your browser to pause before websites you chose, and notices swipes in YouTube Shorts and Instagram Reels to count them. It does not read your messages or what you type, stores only counts and your lists on this phone, and never controls other apps. You can turn it off here at any time.</string>
 </resources>

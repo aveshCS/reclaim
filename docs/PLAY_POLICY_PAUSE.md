@@ -21,12 +21,13 @@ each release.
 | Requirement | RECLAIM implementation |
 |---|---|
 | Not an accessibility tool | `android:isAccessibilityTool="false"` in `res/xml/pause_gate_service.xml` |
-| Minimal access | `typeWindowStateChanged` events only; `canRetrieveWindowContent=false`; no gestures, no key events. Only `event.packageName` is read |
-| No autonomous actions | Deterministic rule in `GateDecider.kt`: if a user-chosen app comes to the front, show RECLAIM's own pause screen. Never taps, scrolls or changes anything in other apps |
+| Minimal access | App pause: `typeWindowStateChanged` only; reads `event.packageName` and whether the window is full-screen. `canRetrieveWindowContent=true` since 2026-11-08 because two **opt-in** features need it: website pause (address-bar text of known browsers only, reduced to a site name, not stored) and reels counter (scroll events whose source view id is the YouTube/Instagram short-video pager; only a count is stored). The service adds `typeWindowContentChanged` / `typeViewScrolled` at runtime only while the matching feature is on. No gestures, no key events |
+| Separate disclosure per data type | `FeatureDisclosure` (src/features/pause/WebAndReels.tsx): one full screen for the website pause and one for the reels counter, each with its own tick box and consent record (`accessibility_website_pause`, `accessibility_reels_counter`). The base pause disclosure explains why Android shows "view and control screen" |
+| No autonomous actions | Deterministic rule in `GateDecider.kt`: if a user-chosen app comes to the front, show RECLAIM's own pause screen (an accessibility overlay window, `PauseOverlay.kt`). Never taps, scrolls or changes anything in other apps. The only system action is "Home" (`GLOBAL_ACTION_HOME`), and only when the user taps "Not now" or Back |
 | Separate prominent disclosure | `PauseDisclosure` (src/features/pause/PauseSetup.tsx): its own full screen shown when the user taps "Set up the pause", before Android Settings opens; covers why, what is accessed, what is never done, what is stored, and how to turn it off |
 | Affirmative consent | "I understand and agree…" tick box; "Agree and open settings" stays disabled until ticked. Decline leaves everything off. Consent is recorded append-only (`accessibility_pause`) |
 | User control | "Open anyway" always works; "Not now" is one tap; "Turn the pause off" in app; switch off in Android Settings any time |
-| Data | Chosen package names, labels and daily counters only, on device. Nothing is sent anywhere |
+| Data | Chosen package names, labels, chosen sites, daily counters and daily reel counts per app, only on device. Visited addresses and video details are never stored. Nothing is sent anywhere |
 | Not a blocker | Nothing is blocked. The pause is a 5-second breath with a choice |
 
 ## Still to do before submitting to Play
@@ -45,5 +46,15 @@ each release.
 - After an app update or reinstall, Android may mark the service as crashed and turn it off; the
   user must re-enable it in Settings. RECLAIM shows "One step left" when it detects the service is
   off. Seen on the emulator during development.
-- Some OEMs (e.g. Samsung, Xiaomi) restrict background services more aggressively; real-device
-  testing is required (competitor reviews show this is where such apps fail).
+- Xiaomi/POCO/Redmi (HyperOS/MIUI) block apps from opening screens in the background unless the
+  user grants a hidden "Display pop-up windows while running in the background" permission. The
+  first version used an Activity and was silently blocked on a POCO M4 Pro (logcat:
+  `MIUILOG- Permission Denied Activity … Abort background activity starts`). The pause is now a
+  `TYPE_ACCESSIBILITY_OVERLAY` window drawn by the service, which needs no extra permission;
+  verified showing on that POCO M4 Pro (Android 13, HyperOS 1.0) on 2026-11-08.
+- On that POCO, Xiaomi's floating video toolbox (`com.miui.securitycenter`, a small `ImageView`
+  window) appears when YouTube opens, and YouTube sends small pop-up events while opening and
+  closing. These made the pause vanish and re-appear (even over the home screen). Now only
+  full-screen windows from other apps can take the pause down or reset it, and a chosen app is
+  ignored for 3 s after the pause is dismissed. Verified on the POCO and the emulator.
+- Other OEMs (e.g. Samsung, Oppo, Vivo) may also restrict background services; test there too.

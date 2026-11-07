@@ -19,7 +19,53 @@ type NativeGate = {
   ): Promise<boolean>;
   getStats(dates: string[]): Promise<PauseDayStats[]>;
   clearStats(): Promise<boolean>;
+  configureExtras(
+    webEnabled: boolean,
+    sites: string[],
+    reelsEnabled: boolean,
+    reelLimit: number,
+    showPip: boolean,
+  ): Promise<boolean>;
+  getReelStats(dates: string[]): Promise<ReelDayStats[]>;
 };
+
+export type ReelDayStats = {
+  date: string;
+  total: number;
+  /** Package name -> reels counted that day. */
+  byApp: Record<string, number>;
+};
+
+/** Apps whose short-video pager RECLAIM can recognise. Facebook and Snapchat can't be read. */
+export const REEL_APPS: { packageName: string; label: string }[] = [
+  { packageName: 'com.google.android.youtube', label: 'YouTube Shorts' },
+  { packageName: 'com.instagram.android', label: 'Instagram Reels' },
+];
+
+function cleanReelStats(raw: unknown): ReelDayStats[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.flatMap((item: unknown) => {
+    if (typeof item !== 'object' || item === null) {
+      return [];
+    }
+    const r = item as Record<string, unknown>;
+    if (typeof r.date !== 'string') {
+      return [];
+    }
+    const byApp: Record<string, number> = {};
+    if (typeof r.byApp === 'object' && r.byApp !== null) {
+      for (const [k, v] of Object.entries(r.byApp as Record<string, unknown>)) {
+        if (typeof v === 'number' && v >= 0) {
+          byApp[k] = Math.round(v);
+        }
+      }
+    }
+    const total = Object.values(byApp).reduce((a, b) => a + b, 0);
+    return [{ date: r.date, total, byApp }];
+  });
+}
 
 function native(): NativeGate | null {
   if (Platform.OS !== 'android') {
@@ -60,6 +106,32 @@ export const pauseGate = {
   async getStats(dates: string[]): Promise<PauseDayStats[]> {
     try {
       return (await native()?.getStats(dates)) ?? [];
+    } catch {
+      return [];
+    }
+  },
+  async configureExtras(
+    webEnabled: boolean,
+    sites: string[],
+    reelsEnabled: boolean,
+    reelLimit: number,
+    showPip: boolean,
+  ): Promise<void> {
+    try {
+      await native()?.configureExtras(
+        webEnabled,
+        sites,
+        reelsEnabled,
+        reelLimit,
+        showPip,
+      );
+    } catch {
+      // Retried on the next change.
+    }
+  },
+  async getReelStats(dates: string[]): Promise<ReelDayStats[]> {
+    try {
+      return cleanReelStats(await native()?.getReelStats(dates));
     } catch {
       return [];
     }

@@ -44,3 +44,15 @@ What the Usage Access integration actually does today:
 | Permission | `PACKAGE_USAGE_STATS` special access, granted by the user in Settings. Re-checked every time the app returns to the foreground, so revocation is noticed immediately; the UI then explains and stops reading. |
 | Definition of an "open" | Coming to the front from a different app, the launcher, or a screen-off. Moving between screens of the same app, or returning within 2 seconds, is not counted. |
 | Known limits | Android keeps detailed events for a limited time (often about a week), so 7-day figures can be partial (the UI says so). An app already open at midnight is counted from midnight. Figures are estimates of foreground time; they say nothing about intent or mood. |
+
+## Implemented behaviour: Accessibility features (Phase 6b/6c, 2026-11-08)
+
+All three run in one Accessibility service, switched on by the user in Android Settings after RECLAIM's own disclosure. Each feature has its own in-app switch, disclosure and consent record. See docs/PLAY_POLICY_PAUSE.md.
+
+| Feature | What is read | What is stored (on device only) |
+|---|---|---|
+| App pause | Which app's window came to the front (package name, full-screen or not) | Chosen apps, daily counts of pauses / "Not now" / "Open" |
+| Website pause (opt-in) | In known browsers only: the address-bar text, reduced to a site name and compared with the list. Skipped while the user is typing in it | Chosen sites, daily counts. Visited addresses are never stored |
+| Reels counter (opt-in) | In YouTube and Instagram only: scroll events of the short-video pager (view id) and its item index | One number per app per day. Nothing about videos |
+
+Nothing is sent anywhere. Counters older than 60 days are pruned. Facebook and Snapchat are not supported (their layouts can't be identified reliably).

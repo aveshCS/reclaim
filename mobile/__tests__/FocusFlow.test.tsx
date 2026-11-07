@@ -12,6 +12,9 @@ import { SETTINGS_KEY } from '../src/services/settingsStorage';
 import { DEFAULT_SETTINGS } from '../src/state/settings';
 import { FOCUS_KEY } from '../src/features/focus/FocusContext';
 
+// Renders the whole app; under a full parallel run it can exceed Jest's 5 s default.
+jest.setTimeout(30_000);
+
 const MIN = 60_000;
 let NOW = new Date(2026, 10, 7, 15, 0).getTime();
 

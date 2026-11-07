@@ -4,8 +4,10 @@ import {
   AgeBandId,
   AppSettings,
   clampFocusMinutes,
+  clampReelLimit,
   clampScreenHours,
   cleanName,
+  cleanSites,
   ConsentRecord,
   DEFAULT_SETTINGS,
   MAX_TRACKED_APPS,
@@ -185,6 +187,15 @@ export function sanitizeSettings(raw: unknown): AppSettings {
         isRecord(raw.gate) && typeof raw.gate.allowMinutes === 'number'
           ? Math.min(60, Math.max(1, Math.round(raw.gate.allowMinutes)))
           : 5,
+    },
+    web: {
+      enabled: isRecord(raw.web) && raw.web.enabled === true,
+      sites: cleanSites(isRecord(raw.web) ? raw.web.sites : []),
+    },
+    reels: {
+      enabled: isRecord(raw.reels) && raw.reels.enabled === true,
+      limit: clampReelLimit(isRecord(raw.reels) ? raw.reels.limit : 0),
+      showPip: !(isRecord(raw.reels) && raw.reels.showPip === false),
     },
     plan: parsePlan(raw.plan),
     reset: parseReset(raw.reset),

@@ -33,6 +33,68 @@ class GateStore(context: Context) {
     get() = prefs.getString("plan", "") ?: ""
     set(v) = prefs.edit().putString("plan", v.take(160)).apply()
 
+  /** Website pause: on/off and the user's sites ("reddit.com"). */
+  var webEnabled: Boolean
+    get() = prefs.getBoolean("webEnabled", false)
+    set(v) = prefs.edit().putBoolean("webEnabled", v).apply()
+
+  var sites: Set<String>
+    get() = prefs.getStringSet("sites", emptySet())?.toSet() ?: emptySet()
+    set(v) = prefs.edit().putStringSet("sites", v).apply()
+
+  /** Reels counter: on/off and an optional daily limit (0 = no limit, just count). */
+  var reelsEnabled: Boolean
+    get() = prefs.getBoolean("reelsEnabled", false)
+    set(v) = prefs.edit().putBoolean("reelsEnabled", v).apply()
+
+  /** Show Pip with today's count floating over Shorts / Reels. */
+  var reelBuddy: Boolean
+    get() = prefs.getBoolean("reelBuddy", true)
+    set(v) = prefs.edit().putBoolean("reelBuddy", v).apply()
+
+  var reelLimit: Int
+    get() = prefs.getInt("reelLimit", 0)
+    set(v) = prefs.edit().putInt("reelLimit", v.coerceIn(0, 1000)).apply()
+
+  fun addReel(pkg: String, now: Long = System.currentTimeMillis()): Int {
+    count("reels_$pkg", now)
+    return reelsOn(day(now))
+  }
+
+  /** Reels counted on a local date, total and per app. */
+  fun reelsByApp(date: String): Map<String, Int> {
+    val prefix = "c_${date}_reels_"
+    return prefs.all
+        .filter { it.key.startsWith(prefix) && it.value is Int }
+        .map { it.key.removePrefix(prefix) to it.value as Int }
+        .toMap()
+  }
+
+  fun reelsOn(date: String): Int = reelsByApp(date).values.sum()
+
+  fun registerListener(l: SharedPreferences.OnSharedPreferenceChangeListener) =
+      prefs.registerOnSharedPreferenceChangeListener(l)
+
+  fun unregisterListener(l: SharedPreferences.OnSharedPreferenceChangeListener) =
+      prefs.unregisterOnSharedPreferenceChangeListener(l)
+
+  /**
+   * Debug builds only: the last few scroll readings in supported apps (view id, class, index),
+   * so reel detection can be checked on a phone even when logcat is unavailable.
+   */
+  fun addDiag(line: String) {
+    val lines = (prefs.getString("diag", "") ?: "").split('\n').filter { it.isNotBlank() }
+    prefs.edit().putString("diag", (lines + line.take(200)).takeLast(30).joinToString("\n")).apply()
+  }
+
+  /** Debug builds only: distinct view ids first seen in supported apps (ids only, no text). */
+  fun addDiagId(id: String) {
+    val set = prefs.getStringSet("diag_ids", emptySet())?.toMutableSet() ?: mutableSetOf()
+    if (id in set || set.size >= 150) return
+    set.add(id.take(120))
+    prefs.edit().putStringSet("diag_ids", set).apply()
+  }
+
   fun label(pkg: String): String? = prefs.getString("label_$pkg", null)
 
   fun setLabels(labels: Map<String, String>) {
@@ -41,6 +103,7 @@ class GateStore(context: Context) {
     e.apply()
   }
 
+  /** [pkg] is an app package, or a key like "web:reddit.com" or "reels". */
   fun allowedUntil(pkg: String): Long = prefs.getLong("allow_$pkg", 0L)
 
   fun allowFor(pkg: String, now: Long) {
@@ -59,11 +122,12 @@ class GateStore(context: Context) {
           prefs.getInt("c_${date}_opened", 0),
       )
 
-  /** Remove counters older than ~60 days. */
-  fun prune(keepDates: Set<String>) {
+  /** Remove daily counters older than [days] days. */
+  fun prune(now: Long = System.currentTimeMillis(), days: Int = 60) {
+    val cutoff = day(now - days * 86_400_000L) // yyyy-MM-dd compares correctly as text
     val e = prefs.edit()
     prefs.all.keys
-        .filter { it.startsWith("c_") && it.split("_").getOrNull(1) !in keepDates }
+        .filter { it.startsWith("c_") && (it.split("_").getOrNull(1) ?: "") < cutoff }
         .forEach { e.remove(it) }
     e.apply()
   }

@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Mindful pause: only window-state changes, no window content, no gestures, no key events. -->
+<!--
+  Mindful pause. By default the service asks only for window-state changes (which app came to
+  the front). Window content is needed only for the optional website pause (address-bar text in
+  known browsers) and reels counter (short-video pager scrolls in YouTube / Instagram); the
+  service adds those event types at runtime only after the user switches each one on in RECLAIM.
+  No gestures, no key events.
+-->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault"
-    android:canRetrieveWindowContent="false"
+    android:canRetrieveWindowContent="true"
     android:canPerformGestures="false"
     android:canRequestFilterKeyEvents="false"
     android:isAccessibilityTool="false"

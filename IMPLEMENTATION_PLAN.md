@@ -698,6 +698,63 @@ locally first and synced when backend is available. - No IQ, diagnosis
 or medical score. - Correctness is graded by trusted content, not
 client-provided `isCorrect`.
 
+## Phase 6b --- Reset, mindful pause, evidence-based practice (done)
+
+Built 2026-11-07: 14-day Reset with day-1/day-14 attention check, mindful
+pause before chosen apps (Accessibility service, Play-policy disclosure),
+"Question it" drill, spaced Recall, if-then plans, move break. See
+IMPLEMENTATION_STATUS.md.
+
+## Phase 6c --- Website pause, reels counter, real-device hardening
+
+**Goal:** Meet people where short-video and endless feeds actually live
+(browsers, Reels, Shorts), with the same kind, non-blocking pause, and
+show the real number of reels scrolled, without becoming a monitoring
+app.
+
+Added 2026-11-08 at the user's request (competitor reference: BrainPal
+counts Instagram Reels, YouTube Shorts, Facebook Reels and Snapchat via
+the Accessibility API and blocks at a reel cap).
+
+Tasks:
+
+1. Real-device hardening of the pause (done 2026-11-08, POCO M4 Pro,
+   HyperOS): draw the pause as an accessibility overlay instead of an
+   Activity (Xiaomi blocks background activity starts); ignore small
+   windows (Xiaomi video toolbox, app pop-ups) when deciding "the user
+   left"; ignore leftover events briefly after a dismissal; treat a
+   full-screen open as always real.
+2. Website pause (opt-in): in known browsers, read only the address-bar
+   text, reduce it to a site name, compare with the user's list on the
+   phone. Same breath, "Not now" and "Open for N min". Ignore the bar
+   while the user is typing. Store only the list and daily counts.
+3. Reels counter (opt-in): in YouTube and Instagram, count each new item
+   the short-video pager moves to (matched by view id). Store one number
+   per app per day. Show today, per app and the last 7 days, with Pip
+   reacting kindly (no shame, no "brain damage" visuals).
+4. Optional daily reel limit: at the limit, show the pause ("That's N
+   reels today") with "Not now" and "Keep watching for N min". Never a
+   hard block.
+5. Separate prominent disclosure and tick-box consent for each feature
+   (Play policy: each kind of on-screen data), consent recorded
+   append-only; base pause disclosure explains why Android shows "view
+   and control screen". Service requests extra event types only while a
+   feature is on.
+6. Update docs/PLAY_POLICY_PAUSE.md, docs/PRIVACY_AND_PLATFORM.md,
+   Play Console declaration and Data safety answers.
+
+Acceptance criteria: - With both features off, the service behaves
+exactly as the app pause (window-state events only). - Website pause
+works in at least Chrome-family browsers on a real phone. - Reels are
+counted on a real phone for YouTube Shorts and Instagram Reels, and the
+view ids are re-verified after app updates. - Nothing about pages,
+videos or text typed is stored or sent. - Facebook and Snapchat are
+listed as not supported until they can be detected reliably.
+
+Later (not in 6c): Facebook Reels / Snapchat Spotlight if a reliable,
+privacy-preserving signal exists; per-app reel limits; reel counts in
+the weekly review (Phase 10); a home-screen widget.
+
 ## Phase 7 --- Backend and database
 
 **Goal:** Add secure persistence after local mobile flows work.

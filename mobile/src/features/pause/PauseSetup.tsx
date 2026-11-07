@@ -18,8 +18,9 @@ import { AppPicker } from '../usage/AppPicker';
 /** Keeps the native pause configuration in step with settings. Render once near the root. */
 export function PauseGateSync() {
   const { settings } = useSettings();
-  const { gate, plan } = settings;
+  const { gate, plan, web, reels } = settings;
   const key = JSON.stringify([gate, plan]);
+  const extrasKey = JSON.stringify([web, reels]);
   useEffect(() => {
     pauseGate.configure(
       gate.enabled,
@@ -30,6 +31,17 @@ export function PauseGateSync() {
     // key captures every relevant field
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
+  useEffect(() => {
+    pauseGate.configureExtras(
+      web.enabled,
+      web.sites,
+      reels.enabled,
+      reels.limit,
+      reels.showPip,
+    );
+    // extrasKey captures every relevant field
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extrasKey]);
   return null;
 }
 
@@ -97,9 +109,16 @@ export function PauseDisclosure({
           </Txt>
           <Txt variant="bodyBold">What it never does</Txt>
           <Txt>
-            It does not read what is on your screen, your messages, what you
-            type or your browsing. It does not tap, scroll or change anything in
-            other apps, and nothing is sent anywhere.
+            For the app pause it does not read what is on your screen, your
+            messages, what you type or your browsing. It does not tap, scroll or
+            change anything in other apps, and nothing is sent anywhere.
+          </Txt>
+          <Txt variant="bodyBold">Why Android may say "view and control screen"</Txt>
+          <Txt>
+            The same service also powers two optional features, the website
+            pause and the reels counter, which need to see a little of the
+            screen. They stay off unless you switch each one on separately,
+            after its own explanation.
           </Txt>
           <Txt variant="bodyBold">What is stored</Txt>
           <Txt>

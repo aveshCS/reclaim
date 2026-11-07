@@ -46,6 +46,11 @@ type SettingsApi = {
   setGate: (enabled: boolean) => void;
   setGateApps: (apps: TrackedApp[]) => void;
   setGateMinutes: (m: number) => void;
+  setWeb: (enabled: boolean) => void;
+  setSites: (sites: string[]) => void;
+  setReels: (enabled: boolean) => void;
+  setReelLimit: (limit: number) => void;
+  setReelPip: (show: boolean) => void;
   setPlan: (p: IfThenPlan | null) => void;
   startReset: (startDate: string, limitMin: number) => void;
   setResetScore: (which: 'baseline' | 'final', score: number) => void;
@@ -128,6 +133,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'setGate', enabled, at: new Date().toISOString() }),
       setGateApps: apps => dispatch({ type: 'setGateApps', apps }),
       setGateMinutes: minutes => dispatch({ type: 'setGateMinutes', minutes }),
+      setWeb: enabled =>
+        dispatch({ type: 'setWeb', enabled, at: new Date().toISOString() }),
+      setSites: sites => dispatch({ type: 'setSites', sites }),
+      setReels: enabled =>
+        dispatch({ type: 'setReels', enabled, at: new Date().toISOString() }),
+      setReelLimit: limit => dispatch({ type: 'setReelLimit', limit }),
+      setReelPip: show => dispatch({ type: 'setReelPip', show }),
       setPlan: plan => dispatch({ type: 'setPlan', plan }),
       startReset: (startDate, limitMin) =>
         dispatch({ type: 'startReset', startDate, limitMin }),

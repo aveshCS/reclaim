@@ -2,6 +2,7 @@ import React from 'react';
 import { EmptyState, ScreenContainer, SectionHeading } from '../../components';
 import { AppTimeSection } from '../usage/AppTimeSection';
 import { PauseSetup } from '../pause/PauseSetup';
+import { ReelsCounter, WebsitePause } from '../pause/WebAndReels';
 
 export function InsightsScreen() {
   return (
@@ -12,7 +13,9 @@ export function InsightsScreen() {
         subtitle="Only real numbers here. Nothing is made up."
       />
       <AppTimeSection />
+      <ReelsCounter />
       <PauseSetup />
+      <WebsitePause />
       <EmptyState
         title="Focus time"
         body="Complete a few focus sessions to see your trend."

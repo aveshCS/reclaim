@@ -1,6 +1,6 @@
 # RECLAIM — Implementation Status
 
-Last updated: 2026-11-07
+Last updated: 2026-11-08
 
 ## Phase checklist
 - [x] Phase 0 — Audit & environment readiness
@@ -10,6 +10,8 @@ Last updated: 2026-11-07
 - [x] Phase 4 — Local-first dashboard (verified on emulator; baseline comparison verified in tests only, see below)
 - [x] Phase 5 — Focus sessions (verified on emulator incl. real process kill; backend sync waits for Phase 7)
 - [x] Phase 6 — Attention Gym (wider scope; 32 exercises self-checked, independent expert review still required before release)
+- [x] Phase 6b — Reset, mindful pause, new practice (pause fixed on a real Xiaomi phone 2026-11-08)
+- [ ] Phase 6c — Website pause + reels counter (code and tests done; real-device check pending, see below)
 - [ ] Phase 7 — Backend + DB
 - [ ] Phase 8 — Rules-based coach
 - [ ] Phase 9 — AI coach
@@ -220,3 +222,22 @@ Built from the research review the developer asked for (sources in chat): brain-
 Bugs found on device and fixed: disclosure did not scroll (Agree button off-screen); double pause on a single app launch; pause stats only loaded once.
 Not verified on device: Reset day 1 -> 14 over real days (unit tests cover dates/DST), recall on later real days, move break full 5 minutes, haptics, OEM behaviour (Samsung/Xiaomi). After app reinstall Android disabled the service ("crashed"), requiring re-enable; the app shows "One step left" in that case.
 Before Play submission: Accessibility declaration + demo video, privacy policy/Data safety, wording review.
+
+## Phase 6c — Website pause, reels counter, real-device hardening (2026-11-08, branch phase-6b-reset-and-pause, uncommitted)
+
+### Pause fixes from the developer's POCO M4 Pro (Android 13, HyperOS 1.0) — verified on that phone over USB
+- Pause never appeared: HyperOS blocked the Activity ("MIUILOG- Permission Denied … Abort background activity starts"). Now drawn as a `TYPE_ACCESSIBILITY_OVERLAY` window (`PauseOverlay.kt`). PauseActivity removed.
+- Pause flickered away and came back, even over the home screen: Xiaomi's floating video toolbox (`com.miui.securitycenter`, small window) and YouTube's leftover small events. Now only full-screen windows from other apps dismiss/reset; small events from a chosen app count only if the user is in that app or has been elsewhere ≥1.5 s; 3 s quiet after a dismissal applies to small events only.
+- Verified by logs on the phone: open → one pause; home → pause removed, no re-prompt; quick reopen → pause again. Button taps were tested by the developer (Xiaomi blocks adb input).
+
+### Website pause + reels counter — built, unit-tested, NOT yet verified on a device
+- Kotlin: `WebMatcher.kt` (address-bar text → site, match list), `ReelTracker.kt` (count forward moves of the short-video pager), service gains runtime event types only while a feature is on; `canRetrieveWindowContent` now true (needed for both).
+- JS: `WebAndReels.tsx` (Website pause card, Reels counter card with today / per app / 7-day bars / limit, separate disclosures), settings `web` and `reels`, consents `accessibility_website_pause` and `accessibility_reels_counter`, policy version `2026-11-draft-2`.
+- Tests: Kotlin 27/27 (adds 7), Jest 174/174 on three consecutive runs (one earlier run had 1 unidentified failure, likely the known slow-under-load flake). Typecheck and lint clean.
+- Unverified: browser address-bar ids other than Chrome's well-known `url_bar`; YouTube Shorts and Instagram Reels pager view ids (from community sources, may be outdated). The debug build logs scroll view ids (`adb logcat -s ReclaimPause`) to calibrate them on a real phone. Facebook and Snapchat not supported.
+
+### Update later on 2026-11-08: reel counting on the POCO, floating Pip
+- Found on the phone (saved diagnostics, ids only): YouTube Shorts sends scroll events without item positions (`from=-1`) and usually none at all for a swipe, so index/scroll counting stayed at 0. Counting now uses which `reel_player_page_container` view is in the middle of the screen (a different page view = a new Short), triggered by content-change events in YouTube/Instagram while the counter is on. Scroll-based counting remains as a fallback. Not yet confirmed by the developer that the number matches real swipes.
+- Floating Pip (`PipBuddy.kt`): small touch-through overlay over Shorts/Reels with today's count; face changes in 4 stages (by limit, or 10/25/50 without one); bounces on each new reel; hides when leaving Shorts, the app, or when the limit pause shows. Switch in Insights (default on). Not yet seen on the phone (the app pause for YouTube was in front during the check).
+- Keyboard and Xiaomi volume panel no longer count as "the user left".
+- Tests now: Kotlin 32/32, Jest 174/174 (twice), typecheck and lint clean. FocusFlow test timeout raised to 30 s (it was the earlier intermittent failure).

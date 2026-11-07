@@ -89,6 +89,58 @@ class PauseGateModule(private val context: ReactApplicationContext) :
     }
   }
 
+  /** Website pause and reels counter options. sites: ["reddit.com", ...] */
+  @ReactMethod
+  fun configureExtras(
+      webEnabled: Boolean,
+      sites: ReadableArray,
+      reelsEnabled: Boolean,
+      reelLimit: Double,
+      showPip: Boolean,
+      promise: Promise
+  ) {
+    try {
+      val store = GateStore(context)
+      val set = HashSet<String>()
+      for (i in 0 until minOf(sites.size(), 100)) {
+        val host = WebMatcher.hostOf(sites.getString(i)) ?: continue
+        set.add(host)
+      }
+      store.sites = set
+      store.reelLimit = reelLimit.toInt()
+      store.reelBuddy = showPip
+      // Write the switches last: the running service re-reads its event types when they change.
+      store.webEnabled = webEnabled
+      store.reelsEnabled = reelsEnabled
+      promise.resolve(true)
+    } catch (e: Exception) {
+      promise.reject("GATE_CONFIG_FAILED", e)
+    }
+  }
+
+  /** Reels counted per local date: [{date, total, byApp: {pkg: n}}]. */
+  @ReactMethod
+  fun getReelStats(dates: ReadableArray, promise: Promise) {
+    try {
+      val store = GateStore(context)
+      val out = Arguments.createArray()
+      for (i in 0 until dates.size()) {
+        val d = dates.getString(i) ?: continue
+        val by = store.reelsByApp(d)
+        val m = Arguments.createMap()
+        m.putString("date", d)
+        m.putInt("total", by.values.sum())
+        val apps = Arguments.createMap()
+        by.forEach { (k, v) -> apps.putInt(k, v) }
+        m.putMap("byApp", apps)
+        out.pushMap(m)
+      }
+      promise.resolve(out)
+    } catch (e: Exception) {
+      promise.reject("GATE_STATS_FAILED", e)
+    }
+  }
+
   /** Daily counts for the given local dates. */
   @ReactMethod
   fun getStats(dates: ReadableArray, promise: Promise) {

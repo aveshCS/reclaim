@@ -94,7 +94,7 @@ export const MAX_FOCUS_MINUTES = 180;
 export const DEFAULT_FOCUS_MINUTES = 25;
 
 /** Identifies the wording the user agreed to. Bump when the wording changes. DRAFT: needs privacy review before release. */
-export const CONSENT_POLICY_VERSION = '2026-11-draft-1';
+export const CONSENT_POLICY_VERSION = '2026-11-draft-2';
 export const CONSENT_PURPOSE_MONITORING = 'usage_monitoring_setup';
 /** Recorded whenever RECLAIM observes Android Usage Access being granted or revoked while the user has opted in. */
 export const CONSENT_PURPOSE_USAGE_ACCESS = 'usage_access_permission';
@@ -113,6 +113,18 @@ export type PauseGate = {
   /** How long "Open anyway" lets the app through without another pause. */
   allowMinutes: number;
 };
+
+/** Separate consents: each feature reads a different kind of on-screen information. */
+export const CONSENT_PURPOSE_WEB = 'accessibility_website_pause';
+export const CONSENT_PURPOSE_REELS = 'accessibility_reels_counter';
+
+export const MAX_SITES = 50;
+/** Website pause: browser address bar compared with the user's sites, on the phone. */
+export type WebPause = { enabled: boolean; sites: string[] };
+
+export const REEL_LIMITS = [0, 20, 40, 60, 100] as const;
+/** Reels counter. limit 0 = just count, no pause. showPip: Pip floats over Shorts/Reels with the count. */
+export type ReelsCounter = { enabled: boolean; limit: number; showPip: boolean };
 
 /** An if-then plan (implementation intention). */
 export type IfThenPlan = { when: string; then: string };
@@ -158,6 +170,8 @@ export type AppSettings = {
   monitoring: { choice: MonitoringChoice; paused: boolean };
   trackedApps: TrackedApp[];
   gate: PauseGate;
+  web: WebPause;
+  reels: ReelsCounter;
   plan: IfThenPlan | null;
   reset: ResetChallenge | null;
   /** Local date (YYYY-MM-DD) the daily practice was last finished. Detailed attempts come in Phase 6. */
@@ -185,6 +199,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   monitoring: { choice: 'undecided', paused: false },
   trackedApps: [],
   gate: { enabled: false, packages: [], allowMinutes: 5 },
+  web: { enabled: false, sites: [] },
+  reels: { enabled: false, limit: 0, showPip: true },
   plan: null,
   reset: null,
   practice: { lastCompletedDate: null },
@@ -216,6 +232,11 @@ export type SettingsAction =
   | { type: 'setGate'; enabled: boolean; at: string }
   | { type: 'setGateApps'; apps: TrackedApp[] }
   | { type: 'setGateMinutes'; minutes: number }
+  | { type: 'setWeb'; enabled: boolean; at: string }
+  | { type: 'setSites'; sites: string[] }
+  | { type: 'setReels'; enabled: boolean; at: string }
+  | { type: 'setReelLimit'; limit: number }
+  | { type: 'setReelPip'; show: boolean }
   | { type: 'setPlan'; plan: IfThenPlan | null }
   | { type: 'startReset'; startDate: string; limitMin: number }
   | { type: 'setResetScore'; which: 'baseline' | 'final'; score: number }
@@ -225,6 +246,49 @@ export type SettingsAction =
   | { type: 'completeOnboarding' };
 
 export const MAX_NAME_LENGTH = 40;
+
+/**
+ * "https://www.Reddit.com/r/x" -> "reddit.com". Returns null for anything that isn't a site.
+ * Mirrors WebMatcher.hostOf on the Android side.
+ */
+export function normalizeSite(input: string): string | null {
+  let t = (input ?? '').trim().toLowerCase();
+  if (!t || /\s/.test(t)) {
+    return null;
+  }
+  t = t.replace(/^https?:\/\//, '');
+  t = t.split(/[/?#]/)[0];
+  t = t.split(':')[0];
+  t = t.includes('@') ? t.slice(t.lastIndexOf('@') + 1) : t;
+  for (const p of ['www.', 'm.', 'mobile.']) {
+    if (t.startsWith(p) && t.length > p.length + 3) {
+      t = t.slice(p.length);
+    }
+  }
+  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(t)
+    ? t
+    : null;
+}
+
+export function cleanSites(sites: unknown): string[] {
+  if (!Array.isArray(sites)) {
+    return [];
+  }
+  const out: string[] = [];
+  for (const s of sites) {
+    const n = typeof s === 'string' ? normalizeSite(s) : null;
+    if (n && !out.includes(n)) {
+      out.push(n);
+    }
+  }
+  return out.slice(0, MAX_SITES);
+}
+
+export function clampReelLimit(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(1000, Math.max(0, Math.round(value)))
+    : 0;
+}
 
 export function clampFocusMinutes(value: number): number {
   if (!Number.isFinite(value)) {
@@ -471,6 +535,59 @@ export function settingsReducer(
           allowMinutes: Math.min(60, Math.max(1, Math.round(action.minutes))),
         },
       };
+
+    case 'setWeb': {
+      if (state.web.enabled === action.enabled) {
+        return state;
+      }
+      return {
+        ...state,
+        web: { ...state.web, enabled: action.enabled },
+        consents: [
+          ...state.consents,
+          {
+            purpose: CONSENT_PURPOSE_WEB,
+            policyVersion: CONSENT_POLICY_VERSION,
+            granted: action.enabled,
+            recordedAt: action.at,
+          },
+        ],
+      };
+    }
+
+    case 'setSites':
+      return {
+        ...state,
+        web: { ...state.web, sites: cleanSites(action.sites) },
+      };
+
+    case 'setReels': {
+      if (state.reels.enabled === action.enabled) {
+        return state;
+      }
+      return {
+        ...state,
+        reels: { ...state.reels, enabled: action.enabled },
+        consents: [
+          ...state.consents,
+          {
+            purpose: CONSENT_PURPOSE_REELS,
+            policyVersion: CONSENT_POLICY_VERSION,
+            granted: action.enabled,
+            recordedAt: action.at,
+          },
+        ],
+      };
+    }
+
+    case 'setReelLimit':
+      return {
+        ...state,
+        reels: { ...state.reels, limit: clampReelLimit(action.limit) },
+      };
+
+    case 'setReelPip':
+      return { ...state, reels: { ...state.reels, showPip: action.show } };
 
     case 'setPlan': {
       if (!action.plan) {

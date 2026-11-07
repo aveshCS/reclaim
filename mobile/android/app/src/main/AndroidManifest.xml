@@ -51,14 +51,5 @@
           android:name="android.accessibilityservice"
           android:resource="@xml/pause_gate_service" />
       </service>
-
-      <activity
-        android:name=".gate.PauseActivity"
-        android:exported="false"
-        android:excludeFromRecents="true"
-        android:launchMode="singleInstance"
-        android:taskAffinity=":pause"
-        android:noHistory="true"
-        android:theme="@style/AppTheme" />
     </application>
 </manifest>

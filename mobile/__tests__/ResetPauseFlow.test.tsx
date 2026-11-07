@@ -29,6 +29,8 @@ jest.mock('../src/native/pauseGate', () => {
       configure: jest.fn(async () => {}),
       getStats: jest.fn(async () => []),
       clearStats: jest.fn(async () => {}),
+      configureExtras: jest.fn(async () => {}),
+      getReelStats: jest.fn(async () => []),
     },
   };
 });
