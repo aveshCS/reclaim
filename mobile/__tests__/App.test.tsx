@@ -41,7 +41,7 @@ describe('main app (onboarding already done)', () => {
     expect(await screen.findByLabelText('Grow together · 25 min')).toBeTruthy();
     const expectations: [string, string][] = [
       ['Focus', 'One thing at a time.'],
-      ['Train', 'Think deeper.'],
+      ['Train', 'Rebuild your attention.'],
       ['Insights', 'Progress, not perfection.'],
       ['Profile', 'Your settings.'],
       ['Home', 'Grow together · 25 min'],

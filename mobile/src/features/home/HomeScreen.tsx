@@ -22,6 +22,8 @@ import { formatClock, formatDuration, localDateKey } from '../../utils/time';
 import { DashboardData, useDashboard } from '../dashboard/useDashboard';
 import { WeekBars } from '../dashboard/WeekBars';
 import { PipCompanion } from './PipCompanion';
+import { useGym } from '../gym/GymContext';
+import { workoutFor } from '../gym/gymModel';
 
 function greeting(date: Date): string {
   const h = date.getHours();
@@ -225,7 +227,10 @@ export function HomeScreen() {
   const wants = PRIORITIES.filter(p => settings.priorities.includes(p.id)).map(
     p => p.label.toLowerCase(),
   );
+  const gym = useGym();
+  const workout = workoutFor(gym.state, localDateKey(Date.now()));
   const practicedToday =
+    !!workout.completedAt ||
     settings.practice.lastCompletedDate === localDateKey(Date.now());
 
   let appTime: React.ReactNode = null;
@@ -310,6 +315,8 @@ export function HomeScreen() {
 
       <FadeIn delay={100}>
         <PipCompanion
+          workoutDone={!!workout.completedAt}
+          onWorkout={() => navigation.navigate('Train')}
           name={name}
           defaultMinutes={settings.focusMinutes}
           onFocus={() => navigation.navigate('Focus')}
@@ -329,13 +336,19 @@ export function HomeScreen() {
         />
         <Tile
           title="Think"
-          body={practicedToday ? 'Done today ✓' : "Today's puzzle"}
+          body={
+            practicedToday
+              ? 'Workout done ✓'
+              : workout.done.length
+              ? `Workout ${workout.done.length}/${workout.plan.length}`
+              : "Today's 4-min workout"
+          }
           icon="🧩"
           tone={colors.leafSoft}
           label={
             practicedToday
-              ? "Today's practice is done. Open thinking practice"
-              : 'Open a critical thinking exercise'
+              ? "Today's practice is done. Open the attention gym"
+              : "Open today's attention workout"
           }
           onPress={() => navigation.navigate('Train')}
         />

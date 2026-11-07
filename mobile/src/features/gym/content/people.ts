@@ -1,0 +1,43 @@
+/** Pools for the name-and-face drill. Faces are emoji people with varied looks. */
+
+export const FACES = [
+  '👩🏽‍🦱',
+  '👨🏻‍🦰',
+  '👵🏾',
+  '👨🏽‍🦳',
+  '👩🏼‍🦰',
+  '🧔🏾',
+  '👩🏻',
+  '👨🏿',
+  '🧕🏽',
+  '👳🏽‍♂️',
+  '👩🏾‍🦳',
+  '👱🏼‍♂️',
+  '👧🏽',
+  '👨🏼‍🦲',
+  '👩🏿‍🦱',
+  '🧑🏻‍🦱',
+];
+
+export const NAMES = [
+  'Aarav',
+  'Diya',
+  'Kabir',
+  'Meera',
+  'Rohan',
+  'Ananya',
+  'Ishaan',
+  'Zara',
+  'Vikram',
+  'Nisha',
+  'Arjun',
+  'Tara',
+  'Dev',
+  'Sana',
+  'Kiran',
+  'Leela',
+  'Omar',
+  'Priya',
+  'Sam',
+  'Elena',
+];

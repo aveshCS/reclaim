@@ -9,7 +9,7 @@ Last updated: 2026-11-07
 - [x] Phase 3 — Android Usage Access native integration (verified on emulator; developer confirmed working on their physical phone 2026-11-07)
 - [x] Phase 4 — Local-first dashboard (verified on emulator; baseline comparison verified in tests only, see below)
 - [x] Phase 5 — Focus sessions (verified on emulator incl. real process kill; backend sync waits for Phase 7)
-- [ ] Phase 6 — Cognitive Gym (30+ reviewed exercises)
+- [x] Phase 6 — Attention Gym (wider scope; 32 exercises self-checked, independent expert review still required before release)
 - [ ] Phase 7 — Backend + DB
 - [ ] Phase 8 — Rules-based coach
 - [ ] Phase 9 — AI coach
@@ -172,3 +172,28 @@ Phase 5:
 | Emulator: end early -> confirm -> reflection -> Home | saved once; Home showed 2 min, Pip cheering |
 
 Not verified: a full 15-min completion on the device (covered by tests incl. finishing while the app was closed), phone reboot mid-session, time-zone change, haptics. Emulator System UI hung once (Android's process, not RECLAIM); emulator was rebooted.
+
+## Phase 6 — Attention Gym (2026-11-07, branch phase-6-attention-gym)
+Scope widened at the developer's request (the differentiator found in competitor research): rebuild attention, not just block apps.
+Retention hook, built on healthy mechanics only (no punitive streaks, no infinite feed, no guilt):
+- Daily 4-minute workout: 3 drills (always a reasoning puzzle + a rotating pair), varies by day, ends cleanly ("Go enjoy your day").
+- Pip's garden: one flower per completed workout, never removed.
+- "This week": 7 days, done days bloom, missed days are just empty ("No streaks to lose").
+- Progress against yourself: per-drill best, first-5 vs latest-5 after 6 tries, per-skill reasoning accuracy.
+- Variety and adaptation: puzzles avoid recent repeats and lean towards the weakest skill; names drill grows 3 -> 6 people.
+- Home: Pip invites to today's workout; Think tile shows workout progress / "Workout done ✓".
+Drills: Think it through (32 reasoning items across 6 skills, difficulty 1-3, teaching explanations), Deep read (6 original passages, text hidden for 3 questions), Names & faces (adaptive), Remember to remember (prospective memory: sort words, tap Remember on food cues), Steady eye (go/no-go sustained attention).
+Grading is done in `gymModel.ts` against trusted content, never trusting the UI. Option order is shuffled per seed so the answer is not always A. Every attempt is stored once with `sync: 'pending'` for the future backend. No IQ, diagnosis or transfer claims.
+
+| Check | Result |
+|---|---|
+| `npm test` | 142/142 (14 suites) three times in a row; includes per-item content checks (answer keys, distinct options, explanations, no clinical/IQ words) |
+| typecheck / lint | pass / pass |
+| Emulator | full workout (reasoning -> names & faces -> deep read), celebration + flower, free practice Steady eye at real speed with correct grading |
+
+Known issues / follow-ups:
+- Content is self-checked, not independently reviewed (plan requires review before release).
+- Names are paired with faces at random (e.g. a female name on a male emoji); fine for memory training but could be paired by presentation later.
+- The celebration screen opened scrolled down once (kept the previous scroll position); cosmetic.
+- Remember-to-remember not run on the emulator (covered by tests). Haptics unverified.
+- One Jest test needed a 30 s timeout under parallel load (not a logic issue).

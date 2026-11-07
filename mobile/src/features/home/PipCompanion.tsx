@@ -39,6 +39,7 @@ export function pipSays(input: {
   minutesToNext: number | null;
   nextStage: string | null;
   name: string;
+  workoutDone?: boolean;
 }): Say {
   const you = input.name ? `, ${input.name}` : '';
   if (input.running) {
@@ -62,6 +63,12 @@ export function pipSays(input: {
       line: `We focused ${input.todayMin} min today! My leaves feel stronger.`,
     };
   }
+  if (input.workoutDone === false && input.hour >= 12) {
+    return {
+      mood: 'happy',
+      line: "Today's 4-minute workout plants a new flower in my garden. 🌸 Shall we?",
+    };
+  }
   if (input.minutesToNext !== null) {
     return {
       mood: 'happy',
@@ -82,10 +89,14 @@ export function PipCompanion({
   name,
   defaultMinutes,
   onFocus,
+  workoutDone,
+  onWorkout,
 }: {
   name: string;
   defaultMinutes: number;
   onFocus: () => void;
+  workoutDone?: boolean;
+  onWorkout?: () => void;
 }) {
   const f = useFocus();
   const reduced = useReducedMotion();
@@ -123,6 +134,7 @@ export function PipCompanion({
     minutesToNext: g.minutesToNext,
     nextStage: g.nextStage,
     name,
+    workoutDone,
   });
 
   const onTap = () => {
@@ -208,6 +220,13 @@ export function PipCompanion({
             onPress={onFocus}
           />
         )}
+        {!a && workoutDone === false && onWorkout ? (
+          <Button
+            label="🌸 Today's 4-min workout"
+            variant="secondary"
+            onPress={onWorkout}
+          />
+        ) : null}
       </View>
     </Card>
   );
@@ -243,5 +262,5 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  full: { alignSelf: 'stretch', marginTop: 4 },
+  full: { alignSelf: 'stretch', marginTop: 4, gap: 10 },
 });
