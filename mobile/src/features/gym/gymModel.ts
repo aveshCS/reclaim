@@ -4,6 +4,7 @@
  *
  * Grading never trusts the UI: answers are checked here against trusted content.
  */
+import { DEEPER, DeeperItem } from './content/deeper';
 import { FACES, NAMES } from './content/people';
 import { PASSAGES } from './content/passages';
 import { REASONING, ReasoningItem, ReasoningSkill } from './content/reasoning';
@@ -52,7 +53,14 @@ export function presentOrder(n: number, seed: string): number[] {
 
 // ---------- Drills ----------
 
-export type DrillKind = 'reason' | 'read' | 'names' | 'remember' | 'steady';
+export type DrillKind =
+  | 'reason'
+  | 'deeper'
+  | 'read'
+  | 'recall'
+  | 'names'
+  | 'remember'
+  | 'steady';
 
 export const DRILLS: Record<
   DrillKind,
@@ -63,6 +71,18 @@ export const DRILLS: Record<
     trains: 'Critical thinking',
     minutes: 1,
     icon: '🧩',
+  },
+  deeper: {
+    title: 'Question it',
+    trains: 'Thinking about real claims',
+    minutes: 1,
+    icon: '🔍',
+  },
+  recall: {
+    title: 'Recall',
+    trains: 'Remembering what you learn',
+    minutes: 1,
+    icon: '🧠',
   },
   read: {
     title: 'Deep read',
@@ -133,8 +153,9 @@ export const ATTEMPT_LIMIT = 2000;
 const ROTATION: [DrillKind, DrillKind][] = [
   ['read', 'names'],
   ['steady', 'remember'],
-  ['names', 'read'],
-  ['remember', 'steady'],
+  ['deeper', 'read'],
+  ['names', 'steady'],
+  ['remember', 'deeper'],
 ];
 
 /** Three short drills, always including a reasoning puzzle. Varies by day. */
@@ -143,15 +164,26 @@ export function planFor(date: string): DrillKind[] {
   return ['reason', ...pair];
 }
 
-export function workoutFor(state: GymState, date: string): WorkoutDay {
-  return (
-    state.workouts[date] ?? {
-      date,
-      plan: planFor(date),
-      done: [],
-      completedAt: null,
-    }
-  );
+/** Today's plan; when something learned earlier is due for review, Recall takes the second slot. */
+export function workoutFor(
+  state: GymState,
+  date: string,
+  focusNotes: FocusNote[] = [],
+): WorkoutDay {
+  const existing = state.workouts[date];
+  if (existing) {
+    return existing;
+  }
+  const base = planFor(date);
+  const plan =
+    dueRecall(state, date, focusNotes) !== null
+      ? [
+          base[0],
+          'recall' as DrillKind,
+          base[1] === 'recall' ? base[2] : base[1],
+        ]
+      : base;
+  return { date, plan, done: [], completedAt: null };
 }
 
 export function nextDrill(w: WorkoutDay): DrillKind | null {
@@ -160,7 +192,13 @@ export function nextDrill(w: WorkoutDay): DrillKind | null {
 
 export type GymAction =
   | { type: 'hydrate'; state: GymState }
-  | { type: 'record'; attempt: Attempt; workoutDate: string | null };
+  | {
+      type: 'record';
+      attempt: Attempt;
+      workoutDate: string | null;
+      /** The plan shown to the user, stored with the first attempt of the day. */
+      plan?: DrillKind[];
+    };
 
 export function gymReducer(state: GymState, action: GymAction): GymState {
   switch (action.type) {
@@ -176,7 +214,12 @@ export function gymReducer(state: GymState, action: GymAction): GymState {
       if (!action.workoutDate) {
         return { ...state, attempts };
       }
-      const w = workoutFor(state, action.workoutDate);
+      const w = state.workouts[action.workoutDate] ?? {
+        date: action.workoutDate,
+        plan: action.plan ?? planFor(action.workoutDate),
+        done: [],
+        completedAt: null,
+      };
       if (!w.plan.includes(action.attempt.drill) || w.completedAt) {
         return { ...state, attempts };
       }
@@ -517,6 +560,111 @@ export function gradeSteady(digits: number[], tapped: boolean[]) {
     holds,
     noGoTotal,
   };
+}
+
+// ---------- Question it (Socratic, real-world claims) ----------
+
+export function pickDeeper(state: GymState, seed: string): DeeperItem {
+  const recent = new Set(
+    state.attempts
+      .filter(a => a.drill === 'deeper')
+      .slice(-(DEEPER.length - 1))
+      .map(a => String(a.detail.itemId)),
+  );
+  const pool = DEEPER.filter(d => !recent.has(d.id));
+  const list = pool.length ? pool : DEEPER;
+  return list[hashString(seed) % list.length];
+}
+
+export function gradeDeeper(itemId: string, probe: number, verdict: number) {
+  const item = DEEPER.find(d => d.id === itemId);
+  if (!item) {
+    throw new Error(`Unknown claim ${itemId}`);
+  }
+  const probeOk = probe === item.bestProbe;
+  const verdictOk = verdict === item.bestVerdict;
+  return {
+    probeOk,
+    verdictOk,
+    correct: (probeOk ? 1 : 0) + (verdictOk ? 1 : 0),
+    total: 2,
+    item,
+  };
+}
+
+// ---------- Recall (retrieval practice, spaced) ----------
+
+/** Review a passage 1 day after reading it, then again 3+ days after. */
+export const RECALL_STAGES = [1, 3];
+
+export type FocusNote = {
+  id: string;
+  /** Local date the session ended. */
+  date: string;
+  intention: string;
+  note: string;
+};
+
+export type RecallTask =
+  | { kind: 'passage'; passageId: string; stage: number; readDate: string }
+  | { kind: 'focus'; sessionId: string; intention: string; note: string };
+
+function daysApart(a: string, b: string): number {
+  const [ay, am, ad] = a.split('-').map(Number);
+  const [by, bm, bd] = b.split('-').map(Number);
+  return Math.round(
+    (new Date(by, bm - 1, bd, 12).getTime() -
+      new Date(ay, am - 1, ad, 12).getTime()) /
+      86_400_000,
+  );
+}
+
+/** The most overdue thing to recall today, or null. Passages first, then focus notes. */
+export function dueRecall(
+  state: GymState,
+  today: string,
+  focusNotes: FocusNote[] = [],
+): RecallTask | null {
+  const recalls = state.attempts.filter(a => a.drill === 'recall');
+  const doneStages = (pid: string) =>
+    recalls
+      .filter(r => r.detail.passageId === pid)
+      .map(r => Number(r.detail.stage));
+  const recalledToday = recalls.some(r => r.date === today);
+  if (recalledToday) {
+    return null; // one recall per day is plenty
+  }
+  const reads = state.attempts
+    .filter(a => a.drill === 'read' && a.date < today)
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+  for (const r of reads) {
+    const pid = String(r.detail.passageId);
+    const done = doneStages(pid);
+    for (const stage of RECALL_STAGES) {
+      if (!done.includes(stage) && daysApart(r.date, today) >= stage) {
+        return { kind: 'passage', passageId: pid, stage, readDate: r.date };
+      }
+    }
+  }
+  const usedFocus = new Set(recalls.map(r => String(r.detail.sessionId)));
+  const note = [...focusNotes]
+    .reverse()
+    .find(
+      n =>
+        n.date < today &&
+        daysApart(n.date, today) <= 3 &&
+        (n.intention || n.note) &&
+        !usedFocus.has(n.id),
+    );
+  if (note) {
+    return {
+      kind: 'focus',
+      sessionId: note.id,
+      intention: note.intention,
+      note: note.note,
+    };
+  }
+  return null;
 }
 
 // ---------- Storage ----------

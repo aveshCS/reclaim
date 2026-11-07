@@ -17,6 +17,7 @@ import { useSettings } from '../../state/SettingsContext';
 import { colors, fonts, MIN_TOUCH_TARGET, radius } from '../../theme/tokens';
 import { formatDuration } from '../../utils/time';
 import { useFocus } from './FocusContext';
+import { MoveBreak } from './MoveBreak';
 import {
   elapsedMs,
   growthFor,
@@ -60,6 +61,7 @@ function Setup() {
   const defaultMinutes = settings.focusMinutes;
   const [minutes, setMinutes] = useState(defaultMinutes);
   const [intention, setIntention] = useState('');
+  const [moving, setMoving] = useState(false);
   useEffect(() => setMinutes(defaultMinutes), [defaultMinutes]);
 
   const presets = BASE_PRESETS.includes(defaultMinutes)
@@ -127,6 +129,25 @@ function Setup() {
       <Button
         label="Start session"
         onPress={() => f.start(minutes, intention)}
+      />
+      <Button
+        label="🏃 Move for 5 min first"
+        variant="secondary"
+        onPress={() => setMoving(true)}
+      />
+      <Txt variant="caption" center>
+        A few minutes of brisk movement gives attention a short boost.
+      </Txt>
+      <MoveBreak
+        visible={moving}
+        onSkip={() => {
+          setMoving(false);
+          f.start(minutes, intention);
+        }}
+        onDone={() => {
+          setMoving(false);
+          f.start(minutes, intention);
+        }}
       />
       <Txt variant="caption" center>
         Your session keeps time even if you leave the app or lock your phone.
@@ -312,7 +333,7 @@ function Finished() {
         <TextInput
           value={note}
           onChangeText={setNote}
-          placeholder="A note for yourself (optional)"
+          placeholder="What did you learn or get done? Pip will ask you tomorrow (optional)"
           placeholderTextColor={colors.inkFaint}
           accessibilityLabel="Note about this session"
           maxLength={500}

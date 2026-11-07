@@ -6,6 +6,7 @@ import { LoadingState } from './src/components';
 import { OnboardingFlow } from './src/features/onboarding/OnboardingFlow';
 import { FocusProvider } from './src/features/focus/FocusContext';
 import { GymProvider } from './src/features/gym/GymContext';
+import { PauseGateSync } from './src/features/pause/PauseSetup';
 import { RootTabs } from './src/navigation/RootTabs';
 import { SettingsProvider, useSettings } from './src/state/SettingsContext';
 import { colors } from './src/theme/tokens';
@@ -56,6 +57,7 @@ export default function App() {
       <SettingsProvider>
         <FocusProvider>
           <GymProvider>
+            <PauseGateSync />
             <Gate />
           </GymProvider>
         </FocusProvider>

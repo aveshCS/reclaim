@@ -197,3 +197,26 @@ Known issues / follow-ups:
 - The celebration screen opened scrolled down once (kept the previous scroll position); cosmetic.
 - Remember-to-remember not run on the emulator (covered by tests). Haptics unverified.
 - One Jest test needed a 30 s timeout under parallel load (not a logic issue).
+
+## Phase 6b — Evidence-based Reset, mindful pause, and new practice (2026-11-07, branch phase-6b-reset-and-pause)
+Built from the research review the developer asked for (sources in chat): brain-game far transfer is weak, so the core of "undoing brainrot" is changing daily phone behaviour, plus practice with real-world thinking and retrieval.
+
+1. **The Reset (14 days)** — modelled on the 2025 PNAS Nexus RCT (blocking mobile internet for 2 weeks improved sustained attention). Gentler version: daily limit for chosen apps, daily check-in, a tip per day, if-then plan, optional pause. Day-1 and day-14 attention check (Steady eye, go/no-go) for a personal before/after. Copy says results vary and one person's before/after can't prove cause.
+2. **Mindful pause (overlay)** — Android AccessibilityService + RECLAIM's own pause activity. 5-second breath, "Not now" (default, one tap) or "Open X for N min". Built to the Play policy: separate prominent disclosure with tick-box consent before Settings opens, `isAccessibilityTool=false`, window-state events only, `canRetrieveWindowContent=false`, deterministic rule, no actions in other apps, data on device only. See docs/PLAY_POLICY_PAUSE.md (declaration + demo video still to do).
+3. **Question it** — 12 real-world claims (forwards, ads, reels, headlines). Socratic: choose the key question first, then judge; teaching takeaway. Based on Abrami 2015 (authentic problems + dialogue worked best).
+4. **Recall** — retrieval practice. Passages are re-asked 1 day and 3+ days later; focus-session notes are recalled the next day. Recall takes a workout slot when due.
+5. **If-then plans** — editor in Reset start and Profile; shown on the pause screen.
+6. **Move break** — 5-minute guided movement before a focus session (acute-exercise evidence: small, short-term attention boost).
+
+| Check | Result |
+|---|---|
+| Kotlin unit tests | 17/17 (5 pause rule, 12 usage) |
+| `npm test` | 164/164 (19 suites), repeated |
+| typecheck / lint | pass / pass |
+| Emulator: disclosure -> tick -> Android Accessibility settings | verified; Agree disabled until ticked |
+| Emulator: open YouTube -> pause screen | verified; "Not now" -> launcher; "Open YouTube for 5 min" -> YouTube; reopen within 5 min -> no pause |
+| Emulator: one launch counts one pause | verified after fix (was 2 because YouTube switches screens during launch) |
+
+Bugs found on device and fixed: disclosure did not scroll (Agree button off-screen); double pause on a single app launch; pause stats only loaded once.
+Not verified on device: Reset day 1 -> 14 over real days (unit tests cover dates/DST), recall on later real days, move break full 5 minutes, haptics, OEM behaviour (Samsung/Xiaomi). After app reinstall Android disabled the service ("crashed"), requiring re-enable; the app shows "One step left" in that case.
+Before Play submission: Accessibility declaration + demo video, privacy policy/Data safety, wording review.

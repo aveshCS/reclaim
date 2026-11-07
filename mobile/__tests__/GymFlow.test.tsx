@@ -19,6 +19,7 @@ import {
 } from '../src/features/gym/gymModel';
 import { REASONING } from '../src/features/gym/content/reasoning';
 import { PASSAGES } from '../src/features/gym/content/passages';
+import { DEEPER } from '../src/features/gym/content/deeper';
 import { localDateKey } from '../src/utils/time';
 
 // Full multi-drill journeys need more than Jest's 5 s default under parallel load.
@@ -80,6 +81,15 @@ async function doDrill(kind: DrillKind) {
         await press(q.answer);
       }
       expect(await screen.findByText('3 of 3 names remembered')).toBeTruthy();
+      break;
+    }
+    case 'deeper': {
+      const item = DEEPER.find(d => screen.queryByText(d.claim))!;
+      await press(new RegExp(`^${esc(item.probes[item.bestProbe])}`));
+      await press('Ask this');
+      await press(new RegExp(`^${esc(item.verdicts[item.bestVerdict])}`));
+      await press('Decide');
+      expect(await screen.findByText(item.takeaway)).toBeTruthy();
       break;
     }
     case 'remember':

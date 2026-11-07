@@ -18,6 +18,7 @@ import {
   settingsReducer,
   StruggleId,
   TrackedApp,
+  IfThenPlan,
 } from './settings';
 
 type SettingsApi = {
@@ -42,6 +43,15 @@ type SettingsApi = {
   setTrackedApps: (apps: TrackedApp[]) => void;
   observeUsageAccess: (granted: boolean) => void;
   completePractice: (date: string) => void;
+  setGate: (enabled: boolean) => void;
+  setGateApps: (apps: TrackedApp[]) => void;
+  setGateMinutes: (m: number) => void;
+  setPlan: (p: IfThenPlan | null) => void;
+  startReset: (startDate: string, limitMin: number) => void;
+  setResetScore: (which: 'baseline' | 'final', score: number) => void;
+  keepResetDay: (date: string, kept: boolean) => void;
+  finishReset: () => void;
+  abandonReset: () => void;
   completeOnboarding: () => void;
 };
 
@@ -114,6 +124,20 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           at: new Date().toISOString(),
         }),
       completePractice: date => dispatch({ type: 'completePractice', date }),
+      setGate: enabled =>
+        dispatch({ type: 'setGate', enabled, at: new Date().toISOString() }),
+      setGateApps: apps => dispatch({ type: 'setGateApps', apps }),
+      setGateMinutes: minutes => dispatch({ type: 'setGateMinutes', minutes }),
+      setPlan: plan => dispatch({ type: 'setPlan', plan }),
+      startReset: (startDate, limitMin) =>
+        dispatch({ type: 'startReset', startDate, limitMin }),
+      setResetScore: (which, score) =>
+        dispatch({ type: 'setResetScore', which, score }),
+      keepResetDay: (date, kept) =>
+        dispatch({ type: 'keepResetDay', date, kept }),
+      finishReset: () =>
+        dispatch({ type: 'finishReset', at: new Date().toISOString() }),
+      abandonReset: () => dispatch({ type: 'abandonReset' }),
       completeOnboarding: () => dispatch({ type: 'completeOnboarding' }),
     }),
     [ready, saveFailed, settings],

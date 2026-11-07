@@ -19,6 +19,7 @@ import {
 } from '../../state/settings';
 import { colors, fonts, MIN_TOUCH_TARGET, radius } from '../../theme/tokens';
 import { FocusDurationPicker } from '../settings/FocusDurationPicker';
+import { PlanEditor } from '../reset/PlanEditor';
 import { RETENTION_DAYS, usageRepository } from '../usage/usageRepository';
 
 export function ProfileScreen() {
@@ -113,6 +114,25 @@ export function ProfileScreen() {
             />
           ))}
         </View>
+      </Card>
+
+      <Card>
+        <Txt variant="heading">Your if-then plan</Txt>
+        <Txt variant="caption">
+          Deciding ahead what you'll do in a tricky moment helps you follow
+          through. It also appears on the mindful pause.
+        </Txt>
+        {s.settings.plan ? (
+          <Txt variant="bodyBold">
+            “When {s.settings.plan.when}, I will {s.settings.plan.then}.”
+          </Txt>
+        ) : null}
+        <PlanEditor
+          key={JSON.stringify(s.settings.plan)}
+          initial={s.settings.plan}
+          onSave={s.setPlan}
+          saveLabel={s.settings.plan ? 'Update plan' : 'Save my plan'}
+        />
       </Card>
 
       <Card>

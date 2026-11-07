@@ -103,6 +103,34 @@ export const CONSENT_PURPOSE_USAGE_ACCESS = 'usage_access_permission';
 export type TrackedApp = { packageName: string; label: string };
 export const MAX_TRACKED_APPS = 30;
 
+/** Recorded when the user agrees to (or withdraws) the separate Accessibility disclosure for the mindful pause. */
+export const CONSENT_PURPOSE_PAUSE = 'accessibility_pause';
+
+export type PauseGate = {
+  /** User wants pauses (the Android service must also be switched on in Settings). */
+  enabled: boolean;
+  packages: TrackedApp[];
+  /** How long "Open anyway" lets the app through without another pause. */
+  allowMinutes: number;
+};
+
+/** An if-then plan (implementation intention). */
+export type IfThenPlan = { when: string; then: string };
+
+export const RESET_DAYS = 14;
+export type ResetChallenge = {
+  /** Local YYYY-MM-DD of day 1. */
+  startDate: string;
+  /** Daily limit for the chosen apps, minutes. */
+  limitMin: number;
+  /** Steady-eye score at the start and end (0..1). */
+  baselineScore: number | null;
+  finalScore: number | null;
+  /** Local dates the user checked in as "stayed within my limit". */
+  keptDays: string[];
+  finishedAt: string | null;
+};
+
 export type ConsentRecord = {
   purpose: string;
   policyVersion: string;
@@ -129,6 +157,9 @@ export type AppSettings = {
   focusMinutes: number;
   monitoring: { choice: MonitoringChoice; paused: boolean };
   trackedApps: TrackedApp[];
+  gate: PauseGate;
+  plan: IfThenPlan | null;
+  reset: ResetChallenge | null;
   /** Local date (YYYY-MM-DD) the daily practice was last finished. Detailed attempts come in Phase 6. */
   practice: { lastCompletedDate: string | null };
   /** Append-only history. Never edited or removed. */
@@ -153,6 +184,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   focusMinutes: DEFAULT_FOCUS_MINUTES,
   monitoring: { choice: 'undecided', paused: false },
   trackedApps: [],
+  gate: { enabled: false, packages: [], allowMinutes: 5 },
+  plan: null,
+  reset: null,
   practice: { lastCompletedDate: null },
   consents: [],
 };
@@ -179,6 +213,15 @@ export type SettingsAction =
   | { type: 'setTrackedApps'; apps: TrackedApp[] }
   | { type: 'observeUsageAccess'; granted: boolean; at: string }
   | { type: 'completePractice'; date: string }
+  | { type: 'setGate'; enabled: boolean; at: string }
+  | { type: 'setGateApps'; apps: TrackedApp[] }
+  | { type: 'setGateMinutes'; minutes: number }
+  | { type: 'setPlan'; plan: IfThenPlan | null }
+  | { type: 'startReset'; startDate: string; limitMin: number }
+  | { type: 'setResetScore'; which: 'baseline' | 'final'; score: number }
+  | { type: 'keepResetDay'; date: string; kept: boolean }
+  | { type: 'finishReset'; at: string }
+  | { type: 'abandonReset' }
   | { type: 'completeOnboarding' };
 
 export const MAX_NAME_LENGTH = 40;
@@ -387,6 +430,110 @@ export function settingsReducer(
         ],
       };
     }
+
+    case 'setGate': {
+      if (state.gate.enabled === action.enabled) {
+        return state;
+      }
+      return {
+        ...state,
+        gate: { ...state.gate, enabled: action.enabled },
+        consents: [
+          ...state.consents,
+          {
+            purpose: CONSENT_PURPOSE_PAUSE,
+            policyVersion: CONSENT_POLICY_VERSION,
+            granted: action.enabled,
+            recordedAt: action.at,
+          },
+        ],
+      };
+    }
+
+    case 'setGateApps': {
+      const seen = new Set<string>();
+      const apps = action.apps
+        .filter(
+          a =>
+            a.packageName &&
+            !seen.has(a.packageName) &&
+            seen.add(a.packageName),
+        )
+        .slice(0, MAX_TRACKED_APPS);
+      return { ...state, gate: { ...state.gate, packages: apps } };
+    }
+
+    case 'setGateMinutes':
+      return {
+        ...state,
+        gate: {
+          ...state.gate,
+          allowMinutes: Math.min(60, Math.max(1, Math.round(action.minutes))),
+        },
+      };
+
+    case 'setPlan': {
+      if (!action.plan) {
+        return { ...state, plan: null };
+      }
+      const when = action.plan.when.trim().slice(0, 80);
+      const then = action.plan.then.trim().slice(0, 80);
+      return { ...state, plan: when && then ? { when, then } : null };
+    }
+
+    case 'startReset':
+      if (state.reset && !state.reset.finishedAt) {
+        return state; // one challenge at a time
+      }
+      return {
+        ...state,
+        reset: {
+          startDate: action.startDate,
+          limitMin: Math.min(240, Math.max(5, Math.round(action.limitMin))),
+          baselineScore: null,
+          finalScore: null,
+          keptDays: [],
+          finishedAt: null,
+        },
+      };
+
+    case 'setResetScore': {
+      if (!state.reset) {
+        return state;
+      }
+      const score = Math.min(1, Math.max(0, action.score));
+      return {
+        ...state,
+        reset:
+          action.which === 'baseline'
+            ? {
+                ...state.reset,
+                baselineScore: state.reset.baselineScore ?? score,
+              }
+            : { ...state.reset, finalScore: score },
+      };
+    }
+
+    case 'keepResetDay': {
+      if (!state.reset) {
+        return state;
+      }
+      const has = state.reset.keptDays.includes(action.date);
+      const keptDays = action.kept
+        ? has
+          ? state.reset.keptDays
+          : [...state.reset.keptDays, action.date]
+        : state.reset.keptDays.filter(d => d !== action.date);
+      return { ...state, reset: { ...state.reset, keptDays } };
+    }
+
+    case 'finishReset':
+      return state.reset
+        ? { ...state, reset: { ...state.reset, finishedAt: action.at } }
+        : state;
+
+    case 'abandonReset':
+      return { ...state, reset: null };
 
     case 'completePractice':
       return { ...state, practice: { lastCompletedDate: action.date } };

@@ -12,7 +12,7 @@ Recommended minimal collection:
 Avoid collecting notification contents, message contents, screen captures, keystrokes, or unrelated app activity. Prefer on-device aggregation and transmit only the minimum aggregate needed for a feature.
 
 ## App blocking
-Not part of the initial implementation. Android does not provide a universal, unrestricted third-party app-blocking API. Accessibility services have strict Google Play policy requirements and must not be used deceptively or as a workaround. Evaluate supported approaches and policy eligibility before promising blocking.
+RECLAIM does not block apps. The optional mindful pause (see docs/PLAY_POLICY_PAUSE.md) shows a short breathing screen before user-chosen apps, and "Open anyway" always works. Not part of the initial implementation before Phase 6b. Android does not provide a universal, unrestricted third-party app-blocking API. Accessibility services have strict Google Play policy requirements and must not be used deceptively or as a workaround. Evaluate supported approaches and policy eligibility before promising blocking.
 
 ## Data governance
 - Separate account identity from behavioral event data where feasible.

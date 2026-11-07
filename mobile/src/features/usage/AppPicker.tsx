@@ -18,13 +18,20 @@ type Props = {
   initial: TrackedApp[];
   onCancel: () => void;
   onSave: (apps: TrackedApp[]) => void;
+  title?: string;
 };
 
 /**
  * Lets the user choose which apps to see time for. Apps are listed by recent use so
  * people can find them quickly, but nothing is pre-selected or labelled as "bad".
  */
-export function AppPicker({ visible, initial, onCancel, onSave }: Props) {
+export function AppPicker({
+  visible,
+  initial,
+  onCancel,
+  onSave,
+  title = 'Which apps do you want to see?',
+}: Props) {
   const insets = useSafeAreaInsets();
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,12 +55,19 @@ export function AppPicker({ visible, initial, onCancel, onSave }: Props) {
         const now = Date.now();
         const start = startOfLocalDayDaysAgo(now, 6);
         const week = new Map<string, number>();
-        for (let i = 0; i < apps.length; i += MAX_PACKAGES_PER_CALL) {
-          const chunk = apps
-            .slice(i, i + MAX_PACKAGES_PER_CALL)
-            .map(a => a.packageName);
-          const s = await usageStats.getSummary(start, now, chunk);
-          s.apps.forEach(a => week.set(a.packageName, a.foregroundMs));
+        // Sorting by recent use needs Usage Access; without it, fall back to A–Z.
+        if (await usageStats.hasPermission()) {
+          for (let i = 0; i < apps.length; i += MAX_PACKAGES_PER_CALL) {
+            const chunk = apps
+              .slice(i, i + MAX_PACKAGES_PER_CALL)
+              .map(a => a.packageName);
+            try {
+              const s = await usageStats.getSummary(start, now, chunk);
+              s.apps.forEach(a => week.set(a.packageName, a.foregroundMs));
+            } catch {
+              break;
+            }
+          }
         }
         if (alive) {
           setCandidates(
@@ -126,10 +140,13 @@ export function AppPicker({ visible, initial, onCancel, onSave }: Props) {
           { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 12 },
         ]}
       >
-        <Txt variant="title">Which apps do you want to see?</Txt>
+        <Txt variant="title">{title}</Txt>
         <Txt>
-          Pick the ones you'd like to use less. Sorted by your use in the last 7
-          days. You can change this any time.
+          Pick the ones you'd like to use less.
+          {candidates?.some(c => c.weekMs > 0)
+            ? ' Sorted by your use in the last 7 days.'
+            : ''}{' '}
+          You can change this any time.
         </Txt>
         <TextInput
           value={query}
@@ -170,7 +187,7 @@ export function AppPicker({ visible, initial, onCancel, onSave }: Props) {
             initialNumToRender={20}
           />
         )}
-        {candidates && shown.length > 0 ? (
+        {candidates && shown.length > 0 && shown[0].weekMs > 0 ? (
           <Txt variant="caption">
             Most used this week: {shown[0].label} (
             {formatDuration(shown[0].weekMs)})

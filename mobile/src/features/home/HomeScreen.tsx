@@ -22,6 +22,9 @@ import { formatClock, formatDuration, localDateKey } from '../../utils/time';
 import { DashboardData, useDashboard } from '../dashboard/useDashboard';
 import { WeekBars } from '../dashboard/WeekBars';
 import { PipCompanion } from './PipCompanion';
+import { ResetScreen } from '../reset/ResetScreen';
+import { resetStatus } from '../reset/resetModel';
+import { RESET_DAYS } from '../../state/settings';
 import { useGym } from '../gym/GymContext';
 import { workoutFor } from '../gym/gymModel';
 
@@ -214,6 +217,7 @@ export function HomeScreen() {
   const s = useSettings();
   const { settings } = s;
   const [pauseOpen, setPauseOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const [visible, setVisible] = useState(true);
   useFocusEffect(
     useCallback(() => {
@@ -323,6 +327,35 @@ export function HomeScreen() {
         />
       </FadeIn>
 
+      <FadeIn delay={130}>
+        {(() => {
+          const rs = resetStatus(settings.reset, localDateKey(Date.now()));
+          const title =
+            rs.kind === 'none'
+              ? 'The Reset: 14 days to get your attention back'
+              : rs.kind === 'needsBaseline'
+              ? 'Reset: take your day-1 attention check'
+              : rs.kind === 'active'
+              ? `Reset: day ${rs.day} of ${RESET_DAYS}`
+              : rs.kind === 'needsFinal'
+              ? 'Reset: take your final attention check'
+              : 'Reset complete: see your change';
+          return (
+            <Card tone="orange">
+              <Txt variant="label" color={colors.ink}>
+                Backed by a 2025 study
+              </Txt>
+              <Txt variant="heading">{title}</Txt>
+              <Button
+                label={rs.kind === 'none' ? 'Learn more' : 'Open the Reset'}
+                variant="secondary"
+                onPress={() => setResetOpen(true)}
+              />
+            </Card>
+          );
+        })()}
+      </FadeIn>
+
       {appTime ? <FadeIn delay={150}>{appTime}</FadeIn> : null}
 
       <FadeIn delay={200} style={styles.tiles}>
@@ -393,6 +426,7 @@ export function HomeScreen() {
       ) : null}
 
       <BreathingPause visible={pauseOpen} onClose={() => setPauseOpen(false)} />
+      <ResetScreen visible={resetOpen} onClose={() => setResetOpen(false)} />
     </ScreenContainer>
   );
 }

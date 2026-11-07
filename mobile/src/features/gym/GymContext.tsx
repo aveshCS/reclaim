@@ -29,7 +29,7 @@ type GymApi = {
   state: GymState;
   today: string;
   /** Save a graded attempt. If `inWorkout`, it also counts towards today's workout. */
-  record: (a: RecordInput, inWorkout: boolean) => Attempt;
+  record: (a: RecordInput, inWorkout: boolean, plan?: DrillKind[]) => Attempt;
 };
 
 const Ctx = createContext<GymApi | null>(null);
@@ -80,7 +80,7 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
       ready,
       state,
       today,
-      record: (input, inWorkout) => {
+      record: (input, inWorkout, plan) => {
         const at = Date.now();
         const date = localDateKey(at);
         const attempt: Attempt = {
@@ -90,11 +90,15 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
           at,
           sync: 'pending',
         };
-        const before = workoutFor(stateRef.current, date);
+        const before = stateRef.current.workouts[date] ?? {
+          ...workoutFor(stateRef.current, date),
+          plan: plan ?? workoutFor(stateRef.current, date).plan,
+        };
         dispatch({
           type: 'record',
           attempt,
           workoutDate: inWorkout ? date : null,
+          plan,
         });
         const willComplete =
           inWorkout &&

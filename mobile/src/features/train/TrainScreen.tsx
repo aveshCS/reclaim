@@ -27,12 +27,17 @@ import {
   RememberDrill,
   SteadyDrill,
 } from '../gym/drills/Drills';
+import { DeeperDrill, RecallDrill } from '../gym/drills/MoreDrills';
+import { useFocus } from '../focus/FocusContext';
 import { Garden } from '../gym/Garden';
 import { useGym } from '../gym/GymContext';
 import {
   DrillKind,
   DRILLS,
   drillStats,
+  dueRecall,
+  FocusNote,
+  pickDeeper,
   garden,
   GymState,
   namesLevel,
@@ -57,11 +62,13 @@ function DrillHost({
   drill,
   seed,
   state,
+  focusNotes,
   onDone,
 }: {
   drill: DrillKind;
   seed: string;
   state: GymState;
+  focusNotes: FocusNote[];
   onDone: (r: DrillResult) => void;
 }) {
   // Pick content once per drill start, so it doesn't change while answering.
@@ -69,6 +76,8 @@ function DrillHost({
     () => ({
       reasonId: pickReasoning(state, seed).id,
       passageId: pickPassage(state, seed).id,
+      deeperId: pickDeeper(state, seed).id,
+      recall: dueRecall(state, localDateKey(Date.now()), focusNotes),
       size: namesLevel(state),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,6 +98,34 @@ function DrillHost({
       return <RememberDrill seed={seed} onDone={onDone} />;
     case 'steady':
       return <SteadyDrill seed={seed} onDone={onDone} />;
+    case 'deeper':
+      return (
+        <DeeperDrill seed={seed} itemId={picked.deeperId} onDone={onDone} />
+      );
+    case 'recall':
+      return picked.recall ? (
+        <RecallDrill task={picked.recall} seed={seed} onDone={onDone} />
+      ) : (
+        <View style={styles.gap}>
+          <Txt>
+            Nothing to recall yet. Do a Deep read today, or leave a note after a
+            focus session, and Pip will ask you about it tomorrow.
+          </Txt>
+          <Button
+            label="Okay"
+            onPress={() =>
+              onDone({
+                drill: 'recall',
+                score: 0,
+                correct: 0,
+                total: 0,
+                durationMs: 0,
+                detail: { empty: true },
+              })
+            }
+          />
+        </View>
+      );
   }
 }
 
@@ -138,6 +175,15 @@ function lastSevenDays(now: number): string[] {
 
 export function TrainScreen() {
   const gym = useGym();
+  const focus = useFocus();
+  const focusNotes: FocusNote[] = focus.state.history
+    .filter(h => h.intention || h.reflection?.note)
+    .map(h => ({
+      id: h.id,
+      date: localDateKey(h.endedAt),
+      intention: h.intention,
+      note: h.reflection?.note ?? '',
+    }));
   const [mode, setMode] = useState<Mode>({ kind: 'hub' });
   const [toast, setToast] = useState<string | null>(null);
 
@@ -150,7 +196,7 @@ export function TrainScreen() {
   }
 
   const today = gym.today;
-  const w = workoutFor(gym.state, today);
+  const w = workoutFor(gym.state, today, focusNotes);
   const next = nextDrill(w);
   const flowers = garden(gym.state);
 
@@ -158,7 +204,7 @@ export function TrainScreen() {
   if (mode.kind === 'workout' && next) {
     const step = w.done.length + 1;
     return (
-      <ScreenContainer>
+      <ScreenContainer key={`w-${next}`}>
         <DrillHeader
           drill={next}
           step={step}
@@ -170,8 +216,9 @@ export function TrainScreen() {
           drill={next}
           seed={`${today}:${next}`}
           state={gym.state}
+          focusNotes={focusNotes}
           onDone={r => {
-            gym.record(r, true);
+            gym.record(r, true, w.plan);
             const finishing = w.plan.every(
               d => d === next || w.done.includes(d),
             );
@@ -191,7 +238,7 @@ export function TrainScreen() {
       a => a.date === today && w.plan.includes(a.drill),
     );
     return (
-      <ScreenContainer>
+      <ScreenContainer key="celebrate">
         <FadeIn style={styles.center}>
           <Pip size={170} mood="cheer" growth={0.4} />
         </FadeIn>
@@ -232,7 +279,7 @@ export function TrainScreen() {
   // ------------------------------------------------ Free practice
   if (mode.kind === 'practice') {
     return (
-      <ScreenContainer>
+      <ScreenContainer key={`p-${mode.seed}`}>
         <DrillHeader
           drill={mode.drill}
           onExit={() => setMode({ kind: 'hub' })}
@@ -242,7 +289,12 @@ export function TrainScreen() {
           drill={mode.drill}
           seed={mode.seed}
           state={gym.state}
+          focusNotes={focusNotes}
           onDone={r => {
+            if (r.total === 0) {
+              setMode({ kind: 'hub' });
+              return;
+            }
             gym.record(r, false);
             setToast(`${DRILLS[mode.drill].title}: ${pct(r.score)} saved`);
             setMode({ kind: 'hub' });
@@ -398,28 +450,33 @@ export function TrainScreen() {
       <Txt variant="label" color={colors.inkSoft}>
         Free practice
       </Txt>
-      {(Object.keys(DRILLS) as DrillKind[]).map(d => (
-        <Pressable
-          key={d}
-          accessibilityRole="button"
-          accessibilityLabel={`Practise ${DRILLS[d].title}`}
-          onPress={() => {
-            haptic.tap();
-            setToast(null);
-            setMode({ kind: 'practice', drill: d, seed: String(Date.now()) });
-          }}
-          style={({ pressed }) => [styles.practice, pressed && styles.pressed]}
-        >
-          <Txt style={styles.practiceIcon}>{DRILLS[d].icon}</Txt>
-          <View style={styles.flex}>
-            <Txt variant="bodyBold">{DRILLS[d].title}</Txt>
-            <Txt variant="caption">
-              {DRILLS[d].trains} · ~{DRILLS[d].minutes} min
-            </Txt>
-          </View>
-          <Txt variant="title">›</Txt>
-        </Pressable>
-      ))}
+      {(Object.keys(DRILLS) as DrillKind[])
+        .filter(d => d !== 'recall' || dueRecall(gym.state, today, focusNotes))
+        .map(d => (
+          <Pressable
+            key={d}
+            accessibilityRole="button"
+            accessibilityLabel={`Practise ${DRILLS[d].title}`}
+            onPress={() => {
+              haptic.tap();
+              setToast(null);
+              setMode({ kind: 'practice', drill: d, seed: String(Date.now()) });
+            }}
+            style={({ pressed }) => [
+              styles.practice,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Txt style={styles.practiceIcon}>{DRILLS[d].icon}</Txt>
+            <View style={styles.flex}>
+              <Txt variant="bodyBold">{DRILLS[d].title}</Txt>
+              <Txt variant="caption">
+                {DRILLS[d].trains} · ~{DRILLS[d].minutes} min
+              </Txt>
+            </View>
+            <Txt variant="title">›</Txt>
+          </Pressable>
+        ))}
 
       <Txt variant="caption" center>
         Practice for learning, not a clinical test. RECLAIM never gives an IQ

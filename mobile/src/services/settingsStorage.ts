@@ -21,6 +21,8 @@ import {
   STRUGGLES,
   StruggleId,
   TrackedApp,
+  IfThenPlan,
+  ResetChallenge,
 } from '../state/settings';
 
 export const SETTINGS_KEY = 'reclaim.settings.v1';
@@ -104,6 +106,48 @@ function parseTrackedApps(v: unknown): TrackedApp[] {
   return out.slice(0, MAX_TRACKED_APPS);
 }
 
+function parsePlan(v: unknown): IfThenPlan | null {
+  if (
+    !isRecord(v) ||
+    typeof v.when !== 'string' ||
+    typeof v.then !== 'string'
+  ) {
+    return null;
+  }
+  const when = v.when.trim().slice(0, 80);
+  const then = v.then.trim().slice(0, 80);
+  return when && then ? { when, then } : null;
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseReset(v: unknown): ResetChallenge | null {
+  if (
+    !isRecord(v) ||
+    typeof v.startDate !== 'string' ||
+    !DATE_RE.test(v.startDate)
+  ) {
+    return null;
+  }
+  const score = (x: unknown) =>
+    typeof x === 'number' && x >= 0 && x <= 1 ? x : null;
+  return {
+    startDate: v.startDate,
+    limitMin:
+      typeof v.limitMin === 'number'
+        ? Math.min(240, Math.max(5, Math.round(v.limitMin)))
+        : 30,
+    baselineScore: score(v.baselineScore),
+    finalScore: score(v.finalScore),
+    keptDays: Array.isArray(v.keptDays)
+      ? v.keptDays.filter(
+          (d): d is string => typeof d === 'string' && DATE_RE.test(d),
+        )
+      : [],
+    finishedAt: typeof v.finishedAt === 'string' ? v.finishedAt : null,
+  };
+}
+
 /** Defensive parse: anything malformed falls back to defaults rather than crashing. */
 export function sanitizeSettings(raw: unknown): AppSettings {
   if (!isRecord(raw) || raw.schemaVersion !== 1) {
@@ -134,6 +178,16 @@ export function sanitizeSettings(raw: unknown): AppSettings {
       paused: choice === 'requested' && monitoring.paused === true,
     },
     trackedApps: parseTrackedApps(raw.trackedApps),
+    gate: {
+      enabled: isRecord(raw.gate) && raw.gate.enabled === true,
+      packages: parseTrackedApps(isRecord(raw.gate) ? raw.gate.packages : []),
+      allowMinutes:
+        isRecord(raw.gate) && typeof raw.gate.allowMinutes === 'number'
+          ? Math.min(60, Math.max(1, Math.round(raw.gate.allowMinutes)))
+          : 5,
+    },
+    plan: parsePlan(raw.plan),
+    reset: parseReset(raw.reset),
     practice: {
       lastCompletedDate:
         isRecord(raw.practice) &&

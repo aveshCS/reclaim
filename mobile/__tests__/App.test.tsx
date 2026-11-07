@@ -57,7 +57,7 @@ describe('main app (onboarding already done)', () => {
       profile: { ...DEFAULT_SETTINGS.profile, name: 'Asha' },
     });
     await render(<App />);
-    expect(await screen.findByText(/, Asha\./)).toBeTruthy();
+    expect(await screen.findByText(/^(Good \w+|Still up), Asha\.$/)).toBeTruthy();
     expect(screen.queryByText(/mindful breaks/i)).toBeNull();
     expect(screen.queryByText(/minutes today/i)).toBeNull();
   });
@@ -151,7 +151,7 @@ describe('onboarding with Pip', () => {
     expect(await screen.findByText("You're all set, Asha! 🎉")).toBeTruthy();
     await fireEvent.press(await screen.findByLabelText("Let's begin"));
 
-    expect(await screen.findByText(/, Asha\./)).toBeTruthy();
+    expect(await screen.findByText(/^(Good \w+|Still up), Asha\.$/)).toBeTruthy();
     const saved = await stored();
     expect(saved.profile).toMatchObject({
       name: 'Asha',
