@@ -129,6 +129,8 @@ export type AppSettings = {
   focusMinutes: number;
   monitoring: { choice: MonitoringChoice; paused: boolean };
   trackedApps: TrackedApp[];
+  /** Local date (YYYY-MM-DD) the daily practice was last finished. Detailed attempts come in Phase 6. */
+  practice: { lastCompletedDate: string | null };
   /** Append-only history. Never edited or removed. */
   consents: ConsentRecord[];
 };
@@ -151,6 +153,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   focusMinutes: DEFAULT_FOCUS_MINUTES,
   monitoring: { choice: 'undecided', paused: false },
   trackedApps: [],
+  practice: { lastCompletedDate: null },
   consents: [],
 };
 
@@ -175,6 +178,7 @@ export type SettingsAction =
   | { type: 'setMonitoringPaused'; paused: boolean }
   | { type: 'setTrackedApps'; apps: TrackedApp[] }
   | { type: 'observeUsageAccess'; granted: boolean; at: string }
+  | { type: 'completePractice'; date: string }
   | { type: 'completeOnboarding' };
 
 export const MAX_NAME_LENGTH = 40;
@@ -383,6 +387,9 @@ export function settingsReducer(
         ],
       };
     }
+
+    case 'completePractice':
+      return { ...state, practice: { lastCompletedDate: action.date } };
 
     case 'completeOnboarding':
       return { ...state, onboarding: { completed: true, step: 'ready' } };

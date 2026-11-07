@@ -134,6 +134,14 @@ export function sanitizeSettings(raw: unknown): AppSettings {
       paused: choice === 'requested' && monitoring.paused === true,
     },
     trackedApps: parseTrackedApps(raw.trackedApps),
+    practice: {
+      lastCompletedDate:
+        isRecord(raw.practice) &&
+        typeof raw.practice.lastCompletedDate === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(raw.practice.lastCompletedDate)
+          ? raw.practice.lastCompletedDate
+          : null,
+    },
     consents: parseConsents(raw.consents),
   };
 }

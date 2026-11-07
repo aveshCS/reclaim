@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import {
   BreathingPause,
   Button,
   Card,
+  ErrorState,
   FadeIn,
+  LoadingState,
   Pip,
   ScreenContainer,
   Txt,
@@ -16,7 +18,9 @@ import { useSettings } from '../../state/SettingsContext';
 import { PRIORITIES } from '../../state/settings';
 import { colors, radius, STICKER_OFFSET } from '../../theme/tokens';
 import { haptic } from '../../utils/haptics';
-import { useUsageAccess } from '../usage/useUsageAccess';
+import { formatClock, formatDuration, localDateKey } from '../../utils/time';
+import { DashboardData, useDashboard } from '../dashboard/useDashboard';
+import { WeekBars } from '../dashboard/WeekBars';
 
 function greeting(date: Date): string {
   const h = date.getHours();
@@ -31,6 +35,8 @@ function greeting(date: Date): string {
   }
   return 'Good evening';
 }
+
+type Nav = BottomTabNavigationProp<RootTabParamList, 'Home'>;
 
 function Tile({
   title,
@@ -71,22 +77,227 @@ function Tile({
   );
 }
 
+function TodayCard({
+  data,
+  onRefresh,
+  onPause,
+}: {
+  data: DashboardData;
+  onRefresh: () => void;
+  onPause: () => void;
+}) {
+  const b = data.baseline;
+  return (
+    <Card tone="butter">
+      <Txt variant="label">Today in your chosen apps</Txt>
+      <Txt
+        variant="display"
+        style={styles.big}
+        accessibilityLabel={`${formatDuration(data.todayMs)} today`}
+      >
+        {formatDuration(data.todayMs)}
+      </Txt>
+      <Txt variant="caption">Updated {formatClock(data.updatedAt)}</Txt>
+      {b.kind === 'ready' ? (
+        <Txt color={colors.ink}>
+          Your usual day: {formatDuration(b.avgMs)} (last {b.days} full days)
+        </Txt>
+      ) : (
+        <Txt color={colors.ink}>
+          Building your baseline: {b.completeDays} of {b.needed} full days so
+          far. No comparisons until then.
+        </Txt>
+      )}
+      {data.todayPartial ? (
+        <Txt variant="caption">
+          Android's history starts part-way through today, so this may be low.
+        </Txt>
+      ) : null}
+
+      <WeekBars
+        bars={data.week}
+        baselineMs={b.kind === 'ready' ? b.avgMs : null}
+      />
+
+      {data.perApp.slice(0, 3).map(a => (
+        <View
+          key={a.packageName}
+          style={styles.appRow}
+          accessible
+          accessibilityLabel={`${a.label}: ${formatDuration(
+            a.ms,
+          )} today, opened ${a.opens} times`}
+        >
+          <Txt variant="bodyBold" style={styles.flex}>
+            {a.label}
+          </Txt>
+          <Txt variant="caption">{a.opens}× opened</Txt>
+          <Txt variant="bodyBold">{formatDuration(a.ms)}</Txt>
+        </View>
+      ))}
+
+      <Txt variant="caption">
+        Estimates from Android for the apps you chose. They show time, not what
+        you did or how you felt.
+      </Txt>
+      <Button label="Refresh" variant="secondary" onPress={onRefresh} />
+      <Button label="Pause app time" variant="ghost" onPress={onPause} />
+    </Card>
+  );
+}
+
+function SuggestionCard({
+  data,
+  onBreathe,
+  onFocus,
+}: {
+  data: DashboardData;
+  onBreathe: () => void;
+  onFocus: () => void;
+}) {
+  const [why, setWhy] = useState(false);
+  const s = data.suggestion;
+  if (!s) {
+    return null;
+  }
+  return (
+    <Card tone={s.id === 'under-usual' ? 'leaf' : 'sky'}>
+      <View style={styles.pipRow}>
+        <Pip
+          size={70}
+          mood={s.id === 'under-usual' ? 'cheer' : 'think'}
+          bob={false}
+        />
+        <View style={styles.flex}>
+          <Txt variant="label" color={colors.ink}>
+            From Pip
+          </Txt>
+          <Txt variant="heading">{s.title}</Txt>
+        </View>
+      </View>
+      <Txt color={colors.ink}>{s.body}</Txt>
+      {s.action === 'breathe' ? (
+        <Button
+          label="Take one breath"
+          variant="secondary"
+          onPress={onBreathe}
+        />
+      ) : null}
+      {s.action === 'focus' ? (
+        <Button
+          label="Start a focus session"
+          variant="secondary"
+          onPress={onFocus}
+        />
+      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Why am I seeing this?"
+        accessibilityState={{ expanded: why }}
+        onPress={() => setWhy(w => !w)}
+        hitSlop={8}
+      >
+        <Txt variant="caption" style={styles.link}>
+          Why am I seeing this?
+        </Txt>
+      </Pressable>
+      {why ? <Txt variant="caption">{s.why}</Txt> : null}
+    </Card>
+  );
+}
+
 export function HomeScreen() {
-  const navigation =
-    useNavigation<BottomTabNavigationProp<RootTabParamList, 'Home'>>();
-  const { settings } = useSettings();
+  const navigation = useNavigation<Nav>();
+  const s = useSettings();
+  const { settings } = s;
   const [pauseOpen, setPauseOpen] = useState(false);
-  const { status } = useUsageAccess();
-  const setupPending =
-    settings.monitoring.choice === 'requested' &&
-    !settings.monitoring.paused &&
-    status !== 'unavailable' &&
-    status !== 'checking' &&
-    (status !== 'granted' || settings.trackedApps.length === 0);
+  const [visible, setVisible] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setVisible(true);
+      return () => setVisible(false);
+    }, []),
+  );
+  const { state, refresh } = useDashboard(visible);
+
   const name = settings.profile.name.trim();
   const wants = PRIORITIES.filter(p => settings.priorities.includes(p.id)).map(
     p => p.label.toLowerCase(),
   );
+  const practicedToday =
+    settings.practice.lastCompletedDate === localDateKey(Date.now());
+
+  let appTime: React.ReactNode = null;
+  switch (state.kind) {
+    case 'ready':
+      appTime = (
+        <>
+          <TodayCard
+            data={state.data}
+            onRefresh={refresh}
+            onPause={() => s.setMonitoringPaused(true)}
+          />
+          <SuggestionCard
+            data={state.data}
+            onBreathe={() => setPauseOpen(true)}
+            onFocus={() => navigation.navigate('Focus')}
+          />
+        </>
+      );
+      break;
+    case 'loading':
+    case 'checking':
+      appTime = (
+        <Card>
+          <LoadingState label="Reading today's app time" />
+        </Card>
+      );
+      break;
+    case 'error':
+      appTime = <ErrorState message={state.message} onRetry={refresh} />;
+      break;
+    case 'paused':
+      appTime = (
+        <Card tone="sand">
+          <Txt variant="label">App time</Txt>
+          <Txt variant="heading">Paused</Txt>
+          <Txt>Nothing is being read while app time is paused.</Txt>
+          <Button
+            label="Resume app time"
+            variant="secondary"
+            onPress={() => s.setMonitoringPaused(false)}
+          />
+        </Card>
+      );
+      break;
+    case 'needsPermission':
+    case 'needsApps':
+      appTime = (
+        <Card tone="orange">
+          <Txt variant="label" color={colors.ink}>
+            Almost there
+          </Txt>
+          <Txt variant="heading">Finish setting up app time</Txt>
+          <Txt color={colors.ink}>
+            {state.kind === 'needsPermission'
+              ? 'Allow Usage Access so I can show time in the apps you choose.'
+              : 'Choose which apps you want to see.'}
+          </Txt>
+          <Button
+            label="Continue setup"
+            variant="secondary"
+            onPress={() => navigation.navigate('Insights')}
+          />
+        </Card>
+      );
+      break;
+    case 'off':
+    case 'unavailable':
+      appTime = null;
+      break;
+  }
+
+  const showSprout = state.kind !== 'ready';
 
   return (
     <ScreenContainer>
@@ -98,39 +309,72 @@ export function HomeScreen() {
         </Txt>
       </FadeIn>
 
-      <FadeIn delay={100}>
-        <Card tone="butter" style={styles.hero}>
-          <Pip size={150} mood="happy" growth={0} />
-          <Txt variant="title" center>
-            Your sprout is still tiny
-          </Txt>
-          <Txt center>
-            It grows with every minute you spend in focus. Ready for the first
-            one?
-          </Txt>
-          <View style={styles.full}>
-            <Button
-              label="Start a focus session"
-              onPress={() => navigation.navigate('Focus')}
-            />
-          </View>
-        </Card>
+      {showSprout ? (
+        <FadeIn delay={100}>
+          <Card tone="butter" style={styles.hero}>
+            <Pip size={150} mood="happy" growth={0} />
+            <Txt variant="title" center>
+              Your sprout is still tiny
+            </Txt>
+            <Txt center>
+              It grows with every minute you spend in focus. Ready for the first
+              one?
+            </Txt>
+            <View style={styles.full}>
+              <Button
+                label="Start a focus session"
+                onPress={() => navigation.navigate('Focus')}
+              />
+            </View>
+          </Card>
+        </FadeIn>
+      ) : null}
+
+      {appTime ? <FadeIn delay={150}>{appTime}</FadeIn> : null}
+
+      <FadeIn delay={200} style={styles.tiles}>
+        <Tile
+          title="Focus"
+          body={state.kind === 'ready' ? 'Start a session' : 'Breathe first?'}
+          icon="⏳"
+          tone={colors.orangeSoft}
+          label="Start a focus session"
+          onPress={() => navigation.navigate('Focus')}
+        />
+        <Tile
+          title="Think"
+          body={practicedToday ? 'Done today ✓' : "Today's puzzle"}
+          icon="🧩"
+          tone={colors.leafSoft}
+          label={
+            practicedToday
+              ? "Today's practice is done. Open thinking practice"
+              : 'Open a critical thinking exercise'
+          }
+          onPress={() => navigation.navigate('Train')}
+        />
       </FadeIn>
 
-      {setupPending ? (
-        <FadeIn delay={150}>
-          <Card tone="orange">
-            <Txt variant="label" color={colors.ink}>
-              Almost there
-            </Txt>
-            <Txt variant="heading">Finish setting up app time</Txt>
-            <Txt color={colors.ink}>
-              {status !== 'granted'
-                ? 'Allow Usage Access so I can show time in the apps you choose.'
-                : 'Choose which apps you want to see.'}
+      <FadeIn delay={260}>
+        <Tile
+          title="Breathe"
+          body="One slow minute with Pip"
+          icon="🫧"
+          tone={colors.skySoft}
+          label="Take a one minute breathing pause"
+          onPress={() => setPauseOpen(true)}
+        />
+      </FadeIn>
+
+      {state.kind === 'off' ? (
+        <FadeIn delay={300}>
+          <Card>
+            <Txt variant="label">Optional</Txt>
+            <Txt variant="bodyBold">
+              Want to see time in the apps you choose?
             </Txt>
             <Button
-              label="Continue setup"
+              label="Set up app time"
               variant="secondary"
               onPress={() => navigation.navigate('Insights')}
             />
@@ -138,27 +382,8 @@ export function HomeScreen() {
         </FadeIn>
       ) : null}
 
-      <FadeIn delay={200} style={styles.tiles}>
-        <Tile
-          title="Breathe"
-          body="One slow minute"
-          icon="🫧"
-          tone={colors.skySoft}
-          label="Take a one minute breathing pause"
-          onPress={() => setPauseOpen(true)}
-        />
-        <Tile
-          title="Think"
-          body="A 3-minute puzzle"
-          icon="🧩"
-          tone={colors.leafSoft}
-          label="Open a critical thinking exercise"
-          onPress={() => navigation.navigate('Train')}
-        />
-      </FadeIn>
-
       {wants.length ? (
-        <FadeIn delay={300}>
+        <FadeIn delay={340}>
           <Card>
             <Txt variant="label">Why you're here</Txt>
             <Txt variant="bodyBold">
@@ -168,14 +393,9 @@ export function HomeScreen() {
         </FadeIn>
       ) : null}
 
-      <FadeIn delay={380}>
-        <Card tone="sand" flat>
-          <Txt variant="bodyBold">
-            You don't have to fill every quiet moment.
-          </Txt>
-          <Txt variant="caption">A pause can be a choice, too.</Txt>
-        </Card>
-      </FadeIn>
+      <Txt variant="caption" center>
+        Focus sessions are not saved yet, so focus minutes aren't shown here.
+      </Txt>
 
       <BreathingPause visible={pauseOpen} onClose={() => setPauseOpen(false)} />
     </ScreenContainer>
@@ -183,8 +403,20 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   hero: { alignItems: 'center', gap: 8, paddingVertical: 22 },
   full: { alignSelf: 'stretch', marginTop: 8 },
+  big: { fontSize: 44, lineHeight: 52 },
+  pipRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  appRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  link: { textDecorationLine: 'underline', color: colors.inkSoft },
   tiles: { flexDirection: 'row', gap: 12 },
   tileOuter: {
     flex: 1,
@@ -206,7 +438,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     padding: 16,
     gap: 4,
-    minHeight: 130,
+    minHeight: 120,
   },
   tileIcon: { fontSize: 30, lineHeight: 38, marginBottom: 4 },
   pressed: { transform: [{ translateX: 2 }, { translateY: 2 }] },

@@ -10,6 +10,8 @@ import {
 } from '../../components';
 import { colors, MIN_TOUCH_TARGET, radius } from '../../theme/tokens';
 import { haptic } from '../../utils/haptics';
+import { useSettings } from '../../state/SettingsContext';
+import { localDateKey } from '../../utils/time';
 
 // TEMPORARY (Phase 6): this single exercise is hardcoded. Phase 6 moves
 // exercises into a typed, reviewed content bank with server-side grading.
@@ -24,6 +26,7 @@ const CORRECT_INDEX = 1;
 export function TrainScreen() {
   const [choice, setChoice] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const { completePractice } = useSettings();
   const right = submitted && choice === CORRECT_INDEX;
 
   return (
@@ -85,6 +88,7 @@ export function TrainScreen() {
         disabled={choice === null || submitted}
         onPress={() => {
           setSubmitted(true);
+          completePractice(localDateKey(Date.now()));
           if (choice === CORRECT_INDEX) {
             haptic.success();
           }

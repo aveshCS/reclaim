@@ -6,8 +6,8 @@ Last updated: 2026-11-07
 - [x] Phase 0 — Audit & environment readiness
 - [x] Phase 1 — Runnable Android shell (installed and launched on a physical Android phone, reported by the developer 2026-11-07)
 - [x] Phase 2 — Onboarding, preferences, consent (verified on Android 15 emulator; see below)
-- [~] Phase 3 — Android Usage Access native integration (done and verified on emulator; physical-device check pending)
-- [ ] Phase 4 — Local-first dashboard
+- [x] Phase 3 — Android Usage Access native integration (verified on emulator; developer confirmed working on their physical phone 2026-11-07)
+- [x] Phase 4 — Local-first dashboard (verified on emulator; baseline comparison verified in tests only, see below)
 - [ ] Phase 5 — Focus sessions
 - [ ] Phase 6 — Cognitive Gym (30+ reviewed exercises)
 - [ ] Phase 7 — Backend + DB
@@ -135,3 +135,17 @@ JS: `src/native/usageStats.ts` (typed wrapper, error codes, re-filters packages)
 
 Not yet verified: physical phone (OEM differences, e.g. Samsung), app already in foreground at midnight on a real day, DST, very heavy event volumes, TalkBack. Paused state and error state covered by Jest only.
 Known limits (also in docs/PRIVACY_AND_PLATFORM.md): Android event history is limited (UI flags partial weeks); data is read on demand, never in the background; figures are estimates.
+
+## Phase 4 — Local-first dashboard (2026-11-07, branch phase-4-dashboard)
+- `UsageRepository` (`src/features/usage/usageRepository.ts`): keeps per-app DAILY totals for chosen apps on the phone (60-day retention, auto-pruned), because Android keeps only ~a week of events. Fills the last 7 completed days and anything missing a newly chosen app; marks days 'full' or 'partial' from where Android's history starts; today is always read fresh and never stored. Deleted when app time is turned off or via Profile > "Delete app-time history" (inline confirm).
+- `dashboardLogic.ts` (pure, tested): baseline = average of up to the last 7 complete days, only after 3 complete days; 7-day bars where missing days are null ("no data"), never zero; one deterministic suggestion (passed usual by >=15 min; >=20 opens of one app; evening and >=20% under usual), each with an exact "Why am I seeing this?" reason. No inference about mood or motivation.
+- Home is now the dashboard: today's total, "Updated" time, baseline or "building your baseline", partial-day note, week chart with usual-day line, top apps with opens, Pip suggestion, Refresh, Pause; separate designed states for off, paused, needs permission, needs apps, loading, error. Practice tile shows "Done today" (new `practice.lastCompletedDate`, set by Train). Focus minutes are not shown because sessions are not saved yet (Phase 5); Home says so.
+
+| Check | Result |
+|---|---|
+| `npm test` | 68/68 (9 suites), run twice |
+| typecheck / lint | pass / pass |
+| Emulator | real totals, "building your baseline 0 of 3", partial-today note, 6 "no data" days, per-app opens, Pause -> "Nothing is being read", Resume |
+
+Not verified on a device: baseline comparison and suggestions (emulator has <1 day of history; covered by unit and UI tests with simulated history), multi-day retention over real days, midnight/DST rollover.
+Two layout bugs found on the emulator and fixed (header overlap, wrapped button text not centred).

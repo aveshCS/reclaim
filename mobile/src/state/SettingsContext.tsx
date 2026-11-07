@@ -41,6 +41,7 @@ type SettingsApi = {
   setMonitoringPaused: (paused: boolean) => void;
   setTrackedApps: (apps: TrackedApp[]) => void;
   observeUsageAccess: (granted: boolean) => void;
+  completePractice: (date: string) => void;
   completeOnboarding: () => void;
 };
 
@@ -112,6 +113,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           granted,
           at: new Date().toISOString(),
         }),
+      completePractice: date => dispatch({ type: 'completePractice', date }),
       completeOnboarding: () => dispatch({ type: 'completeOnboarding' }),
     }),
     [ready, saveFailed, settings],

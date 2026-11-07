@@ -13,6 +13,20 @@ export function startOfLocalDayDaysAgo(t: number, days: number): number {
   return d.getTime();
 }
 
+/** Local calendar date as YYYY-MM-DD (the user's time zone). */
+export function localDateKey(t: number): string {
+  const d = new Date(t);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+/** Short weekday for a local date key, e.g. "Mon". */
+export function weekdayShort(dateKey: string): string {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString([], { weekday: 'short' });
+}
+
 /** "1 h 5 min", "12 min", "<1 min". Rounds down to whole minutes. */
 export function formatDuration(ms: number): string {
   const totalMin = Math.floor(Math.max(0, ms) / 60000);

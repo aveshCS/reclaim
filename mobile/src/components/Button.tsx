@@ -101,7 +101,12 @@ const styles = StyleSheet.create({
   },
   primary: { backgroundColor: colors.orange },
   secondary: { backgroundColor: colors.card },
-  text: { fontFamily: fonts.bodyBlack, fontSize: 17, color: colors.ink },
+  text: {
+    fontFamily: fonts.bodyBlack,
+    fontSize: 17,
+    color: colors.ink,
+    textAlign: 'center',
+  },
   ghost: {
     minHeight: MIN_TOUCH_TARGET,
     alignItems: 'center',

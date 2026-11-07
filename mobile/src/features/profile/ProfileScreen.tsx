@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Switch, TextInput, View } from 'react-native';
 import {
+  Button,
   Card,
   Chip,
   ErrorState,
@@ -18,6 +19,7 @@ import {
 } from '../../state/settings';
 import { colors, fonts, MIN_TOUCH_TARGET, radius } from '../../theme/tokens';
 import { FocusDurationPicker } from '../settings/FocusDurationPicker';
+import { RETENTION_DAYS, usageRepository } from '../usage/usageRepository';
 
 export function ProfileScreen() {
   const s = useSettings();
@@ -28,6 +30,8 @@ export function ProfileScreen() {
   const studies = profile.role === 'student' || profile.role === 'both';
   // Local draft so typing stays smooth; saved when editing ends.
   const [nameDraft, setNameDraft] = useState(profile.name);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [historyDeleted, setHistoryDeleted] = useState(false);
 
   let monitoringStatus = 'Off. Nothing is collected.';
   if (choice === 'requested') {
@@ -133,9 +137,18 @@ export function ProfileScreen() {
             role="radio"
             label="Off"
             selected={choice !== 'requested'}
-            onPress={() => s.setMonitoringChoice('declined')}
+            onPress={() => {
+              s.setMonitoringChoice('declined');
+              // Turning app time off also deletes saved daily history.
+              usageRepository.clear().then(() => setHistoryDeleted(true));
+            }}
           />
         </View>
+        <Txt variant="caption">
+          RECLAIM keeps daily totals for your chosen apps on this phone for{' '}
+          {RETENTION_DAYS} days, so it can learn your usual. Turning app time
+          off deletes them.
+        </Txt>
         {choice === 'requested' ? (
           <View style={styles.switchRow}>
             <Txt variant="bodyBold">Pause monitoring</Txt>
@@ -164,9 +177,39 @@ export function ProfileScreen() {
       <Card tone="sand" flat>
         <Txt variant="heading">Privacy controls</Txt>
         <Txt>
-          Data export and account deletion are not built yet. Everything you set
-          here is stored only on this phone.
+          Everything here is stored only on this phone. Data export and account
+          deletion arrive with accounts.
         </Txt>
+        {historyDeleted ? (
+          <Txt variant="bodyBold">App-time history deleted.</Txt>
+        ) : confirmDelete ? (
+          <>
+            <Txt variant="bodyBold">
+              Delete saved app-time history? Your "usual" will start again from
+              zero.
+            </Txt>
+            <Button
+              label="Yes, delete history"
+              onPress={() =>
+                usageRepository.clear().then(() => {
+                  setHistoryDeleted(true);
+                  setConfirmDelete(false);
+                })
+              }
+            />
+            <Button
+              label="Keep it"
+              variant="ghost"
+              onPress={() => setConfirmDelete(false)}
+            />
+          </>
+        ) : (
+          <Button
+            label="Delete app-time history"
+            variant="secondary"
+            onPress={() => setConfirmDelete(true)}
+          />
+        )}
       </Card>
 
       <Txt variant="caption" center>
