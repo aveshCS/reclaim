@@ -1,0 +1,27 @@
+# deps / build
+node_modules/
+dist/
+build/
+.gradle/
+*.apk
+*.aab
+*.keystore
+*.jks
+local.properties
+.cxx/
+android/app/release/
+# env / secrets
+.env
+.env.*
+!.env.example
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+# logs / coverage
+*.log
+coverage/
+# nested leftover
+reclaim-starter/
