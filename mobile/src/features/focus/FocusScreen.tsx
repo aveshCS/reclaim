@@ -4,6 +4,7 @@ import {
   AnswerHint,
   Button,
   Card,
+  CelebratePip,
   Chip,
   FadeIn,
   Pip,
@@ -135,9 +136,7 @@ function Setup() {
         variant="secondary"
         onPress={() => setMoving(true)}
       />
-      <Txt variant="caption" center>
-        A few minutes of brisk movement gives attention a short boost.
-      </Txt>
+      <Txt variant="caption" center>Moving first gives attention a short boost.</Txt>
       <MoveBreak
         visible={moving}
         onSkip={() => {
@@ -149,10 +148,7 @@ function Setup() {
           f.start(minutes, intention);
         }}
       />
-      <Txt variant="caption" center>
-        Your session keeps time even if you leave the app or lock your phone.
-        RECLAIM doesn't block other apps.
-      </Txt>
+      <Txt variant="caption" center>Keeps time even if you lock your phone.</Txt>
     </ScreenContainer>
   );
 }
@@ -279,13 +275,11 @@ function Finished() {
 
   return (
     <ScreenContainer>
-      <View style={styles.center}>
-        <Pip
-          size={150}
-          mood={completed ? 'cheer' : 'happy'}
-          growth={growthFor(totalMinutes(f.state.history)).value}
-        />
-      </View>
+      <CelebratePip
+        size={150}
+        cheer={completed}
+        growth={growthFor(totalMinutes(f.state.history)).value}
+      />
       <SectionHeading
         kicker={completed ? 'Session complete' : 'Session ended'}
         title={
@@ -295,16 +289,16 @@ function Finished() {
         }
         subtitle={
           info.whileAway && completed
-            ? 'It finished while you were away. Nothing was lost.'
+            ? 'It finished while you were away. Nothing lost.'
             : completed
-            ? 'Thank you for giving it your attention.'
-            : 'Stopping early is fine. Coming back is what matters.'
+            ? undefined
+            : 'Coming back is what matters.'
         }
       />
       <SproutProgress />
 
       <Card>
-        <Txt variant="heading">Quick reflection (optional)</Txt>
+        <Txt variant="heading">How did it go? (optional)</Txt>
         <Txt variant="bodyBold">Did you make progress?</Txt>
         <AnswerHint kind="one" />
         {PROGRESS.map(p => (
@@ -333,17 +327,14 @@ function Finished() {
         <TextInput
           value={note}
           onChangeText={setNote}
-          placeholder="What did you learn or get done? Pip will ask you tomorrow (optional)"
+          placeholder="What did you get done? (optional)"
           placeholderTextColor={colors.inkFaint}
           accessibilityLabel="Note about this session"
           maxLength={500}
           multiline
           style={[styles.input, styles.note]}
         />
-        <Txt variant="caption">
-          Interruptions are what you noticed. RECLAIM doesn't track what you did
-          during the session.
-        </Txt>
+        <Txt variant="caption">Only what you noticed. Nothing is tracked.</Txt>
       </Card>
       <Button
         label={progress && interruptions ? 'Save reflection' : 'Done'}

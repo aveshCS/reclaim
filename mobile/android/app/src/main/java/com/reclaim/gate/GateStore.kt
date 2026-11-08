@@ -106,9 +106,29 @@ class GateStore(context: Context) {
   /** [pkg] is an app package, or a key like "web:reddit.com" or "reels". */
   fun allowedUntil(pkg: String): Long = prefs.getLong("allow_$pkg", 0L)
 
-  fun allowFor(pkg: String, now: Long) {
-    prefs.edit().putLong("allow_$pkg", now + allowMinutes * 60_000L).apply()
+  fun allowFor(pkg: String, now: Long, minutes: Int = allowMinutes) {
+    prefs.edit().putLong("allow_$pkg", now + minutes.coerceIn(1, 60) * 60_000L).apply()
   }
+
+  /** How many times today the user opened [key] through a pause (Firm's daily budget). */
+  fun opensToday(key: String, now: Long = System.currentTimeMillis()): Int =
+      prefs.getInt("c_${day(now)}_opened_$key", 0)
+
+  /** The intensity ladder, written by RECLAIM (see Intensity.kt). */
+  var intensity: Intensity.Plan
+    get() =
+        Intensity.Plan(
+            prefs.getInt("level", Intensity.GENTLE),
+            prefs.getInt("pendingLevel", 0),
+            prefs.getLong("pendingAt", 0L),
+            prefs.getLong("strictUntil", 0L))
+    set(p) =
+        prefs.edit()
+            .putInt("level", p.base)
+            .putInt("pendingLevel", p.pendingLevel)
+            .putLong("pendingAt", p.pendingAt)
+            .putLong("strictUntil", p.strictUntil)
+            .apply()
 
   fun count(kind: String, now: Long = System.currentTimeMillis()) {
     val key = "c_${day(now)}_$kind"

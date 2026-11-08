@@ -3,6 +3,7 @@ import { EmptyState, ScreenContainer, SectionHeading } from '../../components';
 import { AppTimeSection } from '../usage/AppTimeSection';
 import { PauseSetup } from '../pause/PauseSetup';
 import { ReelsCounter, WebsitePause } from '../pause/WebAndReels';
+import { IntensityCard } from '../pause/IntensityPicker';
 
 export function InsightsScreen() {
   return (
@@ -14,6 +15,7 @@ export function InsightsScreen() {
       />
       <AppTimeSection />
       <ReelsCounter />
+      <IntensityCard />
       <PauseSetup />
       <WebsitePause />
       <EmptyState

@@ -9,6 +9,7 @@ import { ProfileScreen } from '../features/profile/ProfileScreen';
 import { TrainScreen } from '../features/train/TrainScreen';
 import { colors, fonts } from '../theme/tokens';
 import type { RootTabParamList } from './types';
+import { haptic } from '../utils/haptics';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -30,7 +31,11 @@ export function RootTabs() {
         tabBarButtonTestID: `tab-${route.name}`,
         tabBarAccessibilityLabel: `${route.name} tab`,
         tabBarIcon: renderIcon(route.name),
+        // A short slide between tabs, and hidden tabs pause so the visible one stays smooth.
+        animation: 'shift',
+        freezeOnBlur: true,
       })}
+      screenListeners={{ tabPress: () => haptic.tap() }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Focus" component={FocusScreen} />

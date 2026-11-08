@@ -10,6 +10,8 @@ import {
   startOfLocalDayDaysAgo,
 } from '../../utils/time';
 import { useFocus } from '../focus/FocusContext';
+import { useSettings } from '../../state/SettingsContext';
+import { useTodayCounts } from './TodayWins';
 import {
   elapsedMs,
   growthFor,
@@ -40,6 +42,10 @@ export function pipSays(input: {
   nextStage: string | null;
   name: string;
   workoutDone?: boolean;
+  /** Times the user chose "Not now" today. */
+  notNowToday?: number;
+  reelsToday?: number;
+  reelLimit?: number;
 }): Say {
   const you = input.name ? `, ${input.name}` : '';
   if (input.running) {
@@ -57,6 +63,21 @@ export function pipSays(input: {
       line: `It's late${you}. Good sleep is focus practice too. 🌙`,
     };
   }
+  const reels = input.reelsToday ?? 0;
+  const reelCap = input.reelLimit ? input.reelLimit : 50;
+  if (reels >= reelCap) {
+    return {
+      mood: 'concerned',
+      line: `${reels} reels today. My eyes are tired. 5 quiet minutes with me?`,
+    };
+  }
+  const nn = input.notNowToday ?? 0;
+  if (nn > 0) {
+    return {
+      mood: 'cheer',
+      line: `${nn}× "Not now" today. That's you, choosing. 🌱`,
+    };
+  }
   if (input.todayMin > 0) {
     return {
       mood: 'cheer',
@@ -66,7 +87,7 @@ export function pipSays(input: {
   if (input.workoutDone === false && input.hour >= 12) {
     return {
       mood: 'happy',
-      line: "Today's 4-minute workout plants a new flower in my garden. 🌸 Shall we?",
+      line: 'A 4-minute workout plants a new flower. 🌸 Shall we?',
     };
   }
   if (input.minutesToNext !== null) {
@@ -99,6 +120,8 @@ export function PipCompanion({
   onWorkout?: () => void;
 }) {
   const f = useFocus();
+  const counts = useTodayCounts();
+  const { settings } = useSettings();
   const reduced = useReducedMotion();
   const jump = useRef(new Animated.Value(0)).current;
   const [tapLine, setTapLine] = useState<string | null>(null);
@@ -135,6 +158,9 @@ export function PipCompanion({
     nextStage: g.nextStage,
     name,
     workoutDone,
+    notNowToday: counts.notNow,
+    reelsToday: counts.reelsOn ? counts.reels : 0,
+    reelLimit: settings.reels.limit,
   });
 
   const onTap = () => {

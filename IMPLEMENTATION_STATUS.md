@@ -241,3 +241,19 @@ Before Play submission: Accessibility declaration + demo video, privacy policy/D
 - Floating Pip (`PipBuddy.kt`): small touch-through overlay over Shorts/Reels with today's count; face changes in 4 stages (by limit, or 10/25/50 without one); bounces on each new reel; hides when leaving Shorts, the app, or when the limit pause shows. Switch in Insights (default on). Not yet seen on the phone (the app pause for YouTube was in front during the check).
 - Keyboard and Xiaomi volume panel no longer count as "the user left".
 - Tests now: Kotlin 32/32, Jest 174/174 (twice), typecheck and lint clean. FocusFlow test timeout raised to 30 s (it was the earlier intermittent failure).
+
+## Phase 6d — "Win back your time" onboarding + intensity ladder (2026-11-08, uncommitted)
+- Website pause fix: Brave was also a chosen app, so the app pause showed first and the site check was skipped; a loaded page sends no more events. The address bar is now checked whenever a pause closes. Chrome confirmed on the POCO; Brave fix not yet confirmed by the developer.
+- Onboarding: new steps after the screen-time check (protect → apps → reels → websites → level → Android step), each feature with its own disclosure and tick box, all skippable; shown only where the pause service exists. `onboarding.protect` ('ask' | 'yes' | 'later').
+- Intensity ladder (`src/state/intensity.ts`, `Intensity.kt`): Aware / Gentle / Firm / Strict; tighten now, loosen after 24 h, Strict time-boxed (max 30 days). Pause screen variants in `PauseOverlay.kt` (Firm reasons; Locked with 60 s emergency unlock). Picker in onboarding and Insights.
+- Verified on the emulator by tapping through: all new onboarding steps, consent ticks gating Continue, Android Settings hand-off and "You're protected", Firm pause (15 s, reason required, "Open YouTube for 2 min"), Gentle request shown as pending with "Keep Firm", Strict until 9 pm locking YouTube, emergency unlock countdown then "Open YouTube for 5 min".
+- Not verified: Firm's 5-opens daily budget lock and Strict on Shorts on a real phone; day-boundary behaviour (unit tests only).
+- Tests: Kotlin 36/36, Jest 188/188 (twice), typecheck and lint clean.
+
+## UX pass: less text, more life (2026-11-08, uncommitted)
+- Picker fix: a gentler level is selected at once and labelled "From <time>"; the level in force shows "Now". Tabs slide (`animation: 'shift'`), buzz on tap, hidden tabs freeze. Release build installed on the POCO to judge speed (debug builds are much slower).
+- Browser Shorts/Reels counted from the address (youtube.com/shorts/ID, instagram.com/reel/ID, facebook.com/reel/ID, tiktok.com/@u/video/ID); verified in emulator Chrome (5 counted, Pip "5 / 40" on top). Reel-limit "Not now" now goes Home (Back made YouTube shrink into its mini-player).
+- Motion: `Stagger` (every screen's cards arrive one by one), `PressScale` (chips and tiles squish), `Pop` (marks and numbers spring), `Sparkles` (burst on wins), `Tile` (compact expandable card).
+- Less text: Insights is now tiles with a one-line summary (reels, intensity, app pause, website pause); consent screens lead with five icon lines, full wording behind "Read the full details"; onboarding science/reality steps cut to a few lines; Home gets a "Today" strip (Not now · reels · focus minutes) instead of sentences.
+- Tests: Jest 190/190 (twice), Kotlin 37/37, typecheck and lint clean; testTimeout 30 s set once in jest.config.js.
+- Follow-up: Home Focus/Think tiles now fill their row (the shorter one looked lifted off its shadow); app-time cards ("Today in your chosen apps" + "From Pip") get the normal gap. Celebrations: `CelebratePip` (hop + sparkles + success buzz) on Session complete and Workout complete. Pip on Home reacts to the day ("2× Not now today…", gentle concern past the reel limit). Copy trimmed on Focus, Train and Profile. Jest 194/194 (twice).

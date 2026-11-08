@@ -55,6 +55,10 @@ class PauseGateService : AccessibilityService() {
         ?: PauseOverlay(this, store) { key ->
               quietUntil[key] = System.currentTimeMillis() + GateDecider.QUIET_AFTER_DISMISS_MS
               Log.d(TAG, "dismissed $key")
+              // A browser can be both a chosen app and showing a chosen site. While the app pause
+              // was up the site check was skipped, and a loaded page sends no more events, so
+              // check the address bar now (after "Open Brave", for example).
+              if (store.webEnabled || store.reelsEnabled) scheduleUrlCheck()
             }
             .also { overlay = it }
   }
@@ -91,7 +95,7 @@ class PauseGateService : AccessibilityService() {
     when (event.eventType) {
       AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> onWindowState(event, pkg, ov)
       AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-        if (store.webEnabled && WebMatcher.isBrowser(pkg)) scheduleUrlCheck()
+        if ((store.webEnabled || store.reelsEnabled) && WebMatcher.isBrowser(pkg)) scheduleUrlCheck()
         if (store.reelsEnabled && ReelTracker.supports(pkg)) scheduleReelScan(pkg)
       }
       AccessibilityEvent.TYPE_VIEW_SCROLLED ->
@@ -132,7 +136,7 @@ class PauseGateService : AccessibilityService() {
       lastFullPkg = pkg
       lastFullAt = now
     }
-    if (store.webEnabled && WebMatcher.isBrowser(pkg)) scheduleUrlCheck()
+    if ((store.webEnabled || store.reelsEnabled) && WebMatcher.isBrowser(pkg)) scheduleUrlCheck()
     if (!realOpen) return
 
     val cfg = GateDecider.Config(store.enabled, store.packages, packageName)
@@ -144,7 +148,10 @@ class PauseGateService : AccessibilityService() {
         cfg, pkg, now, store.allowedUntil(pkg), lastShownFor, lastShownAt, showing, quiet)) {
       return
     }
-    if (!ov.show(ov.appPrompt(pkg))) return // never crash the service; the user sees their app
+    val level = level(now)
+    if (level == Intensity.AWARE) return // count-only: no pauses
+    val prompt = ov.appPrompt(pkg, level, lockedReason(pkg, level, now))
+    if (!ov.show(prompt)) return // never crash the service; the user sees their app
     Log.d(TAG, "pause shown for $pkg")
     lastShownFor = pkg
     lastShownAt = now
@@ -170,19 +177,32 @@ class PauseGateService : AccessibilityService() {
   }
 
   private fun checkUrl() {
-    if (!store.webEnabled) return
+    if (!store.webEnabled && !store.reelsEnabled) return
     val ov = ensureReady()
     if (ov.showingFor != null) return
-    val root = rootInActiveWindow ?: return
-    val browser = root.packageName?.toString() ?: return
-    val ids = WebMatcher.URL_BAR_IDS[browser] ?: return
+    val root = rootInActiveWindow
+    val browser = root?.packageName?.toString()
+    val ids = WebMatcher.URL_BAR_IDS[browser]
+    if (root == null || browser == null || ids == null) {
+      if (BuildConfig.DEBUG) store.addDiag("${System.currentTimeMillis() % 100000} web root=$browser")
+      return
+    }
     var text: String? = null
+    var focused = false
     for (id in ids) {
       val node = root.findAccessibilityNodeInfosByViewId(id).firstOrNull() ?: continue
-      if (node.isFocused) return // the user is typing; wait until they go somewhere
+      focused = node.isFocused
       text = node.text?.toString()
       break
     }
+    if (BuildConfig.DEBUG) {
+      // Site name only, never the full address.
+      store.addDiag(
+          "${System.currentTimeMillis() % 100000} web $browser found=${text != null} focused=$focused host=${WebMatcher.hostOf(text)} short=${WebMatcher.shortVideo(text)?.site}")
+    }
+    if (focused) return // the user is typing; wait until they go somewhere
+    if (store.reelsEnabled) browserReels(browser, text, ov)
+    if (!store.webEnabled || ov.showingFor != null) return
     val site = WebMatcher.match(WebMatcher.hostOf(text), store.sites) ?: return
     val key = "web:$site"
     val now = System.currentTimeMillis()
@@ -191,12 +211,29 @@ class PauseGateService : AccessibilityService() {
         cfg, key, now, store.allowedUntil(key), lastShownFor, lastShownAt, false, quietUntil[key] ?: 0L)) {
       return
     }
-    if (!ov.show(ov.webPrompt(browser, site))) return
+    val level = level(now)
+    if (level == Intensity.AWARE) return
+    if (!ov.show(ov.webPrompt(browser, site, level, lockedReason(key, level, now)))) return
     Log.d(TAG, "pause shown for site")
     lastShownFor = key
     lastShownAt = now
     store.count("shown", now)
     store.count("web", now)
+  }
+
+  /**
+   * Shorts / Reels in a browser: each new video ID in the address (youtube.com/shorts/ID,
+   * instagram.com/reel/ID, ...) is one reel. Only compared, never stored.
+   */
+  private fun browserReels(browser: String, text: String?, ov: PauseOverlay) {
+    val sv = WebMatcher.shortVideo(text)
+    if (sv == null) {
+      if (buddyFor == browser) buddy.hide()
+      return
+    }
+    if (strictReels(browser, ov)) return
+    if (reels.onVisiblePage(browser, (sv.site + "/" + sv.id).hashCode())) countReels(browser, 1, ov)
+    if (ov.showingFor == null) showBuddy(browser)
   }
 
   // ---- Reels counter -------------------------------------------------------------------
@@ -237,10 +274,14 @@ class PauseGateService : AccessibilityService() {
     if (BuildConfig.DEBUG) Log.d(TAG, "reel counted in $pkg, today $total")
 
     val limit = store.reelLimit
-    if (limit <= 0 || total < limit || ov.showingFor != null) return
+    val level = level(now)
+    if (level == Intensity.AWARE || limit <= 0 || total < limit || ov.showingFor != null) return
     if (now < store.allowedUntil("reels") || now < (quietUntil["reels"] ?: 0L)) return
     buddy.hide()
-    if (ov.show(ov.reelsPrompt(pkg, total, limit))) {
+    val prompt =
+        lockedReason("reels", level, now)?.let { ov.reelsLockedPrompt(pkg, it) }
+            ?: ov.reelsPrompt(pkg, total, limit, level)
+    if (ov.show(prompt)) {
       store.count("shown", now)
       store.count("reellimit", now)
     }
@@ -290,12 +331,43 @@ class PauseGateService : AccessibilityService() {
       if (BuildConfig.DEBUG) {
         store.addDiag("${System.currentTimeMillis() % 100000} page n=${nodes.size} key=${mid.hashCode()} new=$isNew")
       }
+      if (strictReels(pkg, ov)) return
       if (isNew) countReels(pkg, 1, ov)
       showBuddy(pkg)
       return
     }
     // No short-video page on screen (e.g. back on the home feed): Pip steps away.
     buddy.hide()
+  }
+
+  /** Strict mode: Shorts / Reels themselves are paused (with the same emergency unlock). */
+  private fun strictReels(pkg: String, ov: PauseOverlay): Boolean {
+    val now = System.currentTimeMillis()
+    if (level(now) != Intensity.STRICT) return false
+    if (now < store.allowedUntil("reels") || now < (quietUntil["reels"] ?: 0L)) return false
+    buddy.hide()
+    val reason = lockedReason("reels", Intensity.STRICT, now) ?: return false
+    if (ov.show(ov.reelsLockedPrompt(pkg, reason))) store.count("shown", now)
+    return true
+  }
+
+  // ---- Intensity -------------------------------------------------------------------------
+
+  private fun level(now: Long) = Intensity.effective(store.intensity, now)
+
+  /** Why this is locked right now (Strict, or Firm's daily opens used up), or null. */
+  private fun lockedReason(key: String, level: Int, now: Long): String? =
+      when {
+        level == Intensity.STRICT -> "Strict mode is on until ${whenText(store.intensity.strictUntil, now)}."
+        Intensity.overBudget(level, store.opensToday(key, now)) ->
+            "You've used today's ${Intensity.FIRM_DAILY_OPENS} opens. It opens again tomorrow."
+        else -> null
+      }
+
+  private fun whenText(t: Long, now: Long): String {
+    val sameDay = GateStore.day(t) == GateStore.day(now)
+    val f = java.text.SimpleDateFormat(if (sameDay) "h:mm a" else "EEE d MMM, h:mm a", java.util.Locale.getDefault())
+    return f.format(java.util.Date(t))
   }
 
   // ---- Pip over Shorts / Reels -----------------------------------------------------------

@@ -755,6 +755,43 @@ Later (not in 6c): Facebook Reels / Snapchat Spotlight if a reliable,
 privacy-preserving signal exists; per-app reel limits; reel counts in
 the weekly review (Phase 10); a home-screen widget.
 
+## Phase 6d --- "Win back your time" onboarding and the intensity ladder
+
+**Goal:** Buy back time first. Users arrive losing hours to feeds, so the
+first win is protection, before focus sessions and practice. Stay
+evidence-based and kind: a pause, not a hard block, unless the user
+chooses Strict for a while.
+
+Evidence: self-chosen optional limits reduced social media use by about
+17% and self-control problems drive about 31% of use (Allcott, Gentzkow
+& Song, AER 2022); users drift to weaker settings over time, and over
+half end with no interventions (Kovacs et al., CHI 2021); a gentle pause
+cut opens by about 37% (Grüning et al., PNAS 2023).
+
+Tasks (built 2026-11-08):
+
+1. Onboarding, right after the screen-time reality check: "First, let's
+   win back some of that time" with "Yes" or "Set up later". Then one
+   step each for apps, reels and websites, each with its own disclosure
+   and tick box (Play policy) and a Skip; a level step (Pip suggests
+   Gentle, or Firm for exam prep with 6+ h/day, never Strict); one trip
+   to Android Settings, resumed on return ("You're protected").
+   Level and Android steps only appear if a feature was switched on.
+   Steps only appear where the pause service exists (Android).
+2. Intensity ladder applied to apps, websites and Shorts:
+   Aware (count only) · Gentle (5 s breath) · Firm (15 s breath, say
+   why, 2 min, 5 opens a day per app or site) · Strict (locked until a
+   chosen time; emergency unlock after a 60 s wait, counted).
+3. Tightening is instant; loosening waits 24 h (shown, cancellable);
+   Strict always has an end (max 30 days) and ending it early also waits
+   up to 24 h. Turning features or the service off stays immediate.
+4. Same picker in Insights.
+
+Later (Phase 8 coach): suggest firmer when "Open anyway" dominates and
+time isn't falling; suggest gentler when emergency unlocks pile up,
+instead of letting the user drift to nothing; invite a step up before
+exams. Suggestions only, never automatic.
+
 ## Phase 7 --- Backend and database
 
 **Goal:** Add secure persistence after local mobile flows work.

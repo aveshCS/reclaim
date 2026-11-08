@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Pop, PressScale } from './Motion';
 import { colors, fonts, MIN_TOUCH_TARGET, radius } from '../theme/tokens';
 import { haptic } from '../utils/haptics';
 
@@ -46,7 +47,7 @@ export function Chip({
   block = false,
 }: Props) {
   return (
-    <Pressable
+    <PressScale
       accessibilityRole={role}
       accessibilityLabel={label}
       accessibilityState={
@@ -56,14 +57,12 @@ export function Chip({
         haptic.select();
         onPress();
       }}
-      style={({ pressed }) => [
-        styles.chip,
-        block && styles.block,
-        selected && styles.selected,
-        pressed && styles.pressed,
-      ]}
+      style={[styles.chip, block && styles.block, selected && styles.selected]}
+      scaleTo={0.95}
     >
-      <Mark role={role} selected={selected} />
+      <Pop trigger={selected}>
+        <Mark role={role} selected={selected} />
+      </Pop>
       {icon ? (
         <Text
           style={styles.icon}
@@ -82,7 +81,7 @@ export function Chip({
       >
         {label}
       </Text>
-    </Pressable>
+    </PressScale>
   );
 }
 

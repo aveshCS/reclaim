@@ -31,6 +31,7 @@ jest.mock('../src/native/pauseGate', () => {
       clearStats: jest.fn(async () => {}),
       configureExtras: jest.fn(async () => {}),
       getReelStats: jest.fn(async () => []),
+      configureIntensity: jest.fn(async () => {}),
     },
   };
 });
@@ -91,7 +92,7 @@ describe('mindful pause setup (Play policy disclosure)', () => {
       await screen.findByText("RECLAIM uses Android's Accessibility service"),
     ).toBeTruthy();
     expect(
-      screen.getByText(/does not read what is on your screen/),
+      screen.getByText(/Never reads your screen/),
     ).toBeTruthy();
     // Button is disabled until the box is ticked.
     await press('Agree and open settings');

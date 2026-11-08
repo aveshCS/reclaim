@@ -4,6 +4,17 @@
  * Everything here is stored only on the device.
  */
 
+import {
+  cancelPending,
+  DEFAULT_INTENSITY,
+  endStrictEarly,
+  Intensity,
+  requestLevel,
+  startStrict,
+} from './intensity';
+
+export type ProtectChoice = 'ask' | 'yes' | 'later';
+
 export const PRIORITIES = [
   { id: 'study', label: 'Study' },
   { id: 'work', label: 'Meaningful work' },
@@ -77,6 +88,12 @@ export const ONBOARDING_STEPS = [
   'age',
   'screenTime',
   'reality',
+  'protect',
+  'protectApps',
+  'protectReels',
+  'protectWeb',
+  'protectLevel',
+  'protectEnable',
   'priorities',
   'duration',
   'monitoring',
@@ -163,7 +180,12 @@ export type Profile = {
 
 export type AppSettings = {
   schemaVersion: 1;
-  onboarding: { completed: boolean; step: OnboardingStep };
+  onboarding: {
+    completed: boolean;
+    step: OnboardingStep;
+    /** "Win back your time" setup in onboarding: not asked yet, chosen, or put off. */
+    protect: ProtectChoice;
+  };
   profile: Profile;
   priorities: PriorityId[];
   focusMinutes: number;
@@ -172,6 +194,7 @@ export type AppSettings = {
   gate: PauseGate;
   web: WebPause;
   reels: ReelsCounter;
+  intensity: Intensity;
   plan: IfThenPlan | null;
   reset: ResetChallenge | null;
   /** Local date (YYYY-MM-DD) the daily practice was last finished. Detailed attempts come in Phase 6. */
@@ -192,7 +215,7 @@ export const DEFAULT_PROFILE: Profile = {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   schemaVersion: 1,
-  onboarding: { completed: false, step: 'hello' },
+  onboarding: { completed: false, step: 'hello', protect: 'ask' },
   profile: DEFAULT_PROFILE,
   priorities: [],
   focusMinutes: DEFAULT_FOCUS_MINUTES,
@@ -201,6 +224,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   gate: { enabled: false, packages: [], allowMinutes: 5 },
   web: { enabled: false, sites: [] },
   reels: { enabled: false, limit: 0, showPip: true },
+  intensity: DEFAULT_INTENSITY,
   plan: null,
   reset: null,
   practice: { lastCompletedDate: null },
@@ -237,6 +261,11 @@ export type SettingsAction =
   | { type: 'setReels'; enabled: boolean; at: string }
   | { type: 'setReelLimit'; limit: number }
   | { type: 'setReelPip'; show: boolean }
+  | { type: 'setProtectChoice'; choice: 'yes' | 'later' }
+  | { type: 'requestLevel'; level: 1 | 2 | 3; now: number }
+  | { type: 'startStrict'; until: number; now: number }
+  | { type: 'endStrictEarly'; now: number }
+  | { type: 'cancelPendingLevel' }
   | { type: 'setPlan'; plan: IfThenPlan | null }
   | { type: 'startReset'; startDate: string; limitMin: number }
   | { type: 'setResetScore'; which: 'baseline' | 'final'; score: number }
@@ -314,11 +343,36 @@ export function cleanName(name: string): string {
   return name.replace(/\s+/g, ' ').trimStart().slice(0, MAX_NAME_LENGTH);
 }
 
+/**
+ * What this device can do. The "win back your time" steps need the Android pause service, so
+ * they stay hidden unless the app says it is available (set once at start-up).
+ */
+export const platformCaps = { protect: false };
+
+const PROTECT_SUBSTEPS: readonly OnboardingStep[] = [
+  'protectApps',
+  'protectReels',
+  'protectWeb',
+];
+
 /** Whether a step should be shown for the current answers. */
 export function isStepApplicable(
   step: OnboardingStep,
   s: AppSettings,
 ): boolean {
+  if (step === 'protect') {
+    return platformCaps.protect;
+  }
+  if (PROTECT_SUBSTEPS.includes(step)) {
+    return platformCaps.protect && s.onboarding.protect === 'yes';
+  }
+  if (step === 'protectLevel' || step === 'protectEnable') {
+    return (
+      platformCaps.protect &&
+      s.onboarding.protect === 'yes' &&
+      (s.gate.enabled || s.reels.enabled || s.web.enabled)
+    );
+  }
   switch (step) {
     case 'exam':
       return s.profile.role === 'student' || s.profile.role === 'both';
@@ -586,6 +640,30 @@ export function settingsReducer(
         reels: { ...state.reels, limit: clampReelLimit(action.limit) },
       };
 
+    case 'setProtectChoice':
+      return {
+        ...state,
+        onboarding: { ...state.onboarding, protect: action.choice },
+      };
+
+    case 'requestLevel':
+      return {
+        ...state,
+        intensity: requestLevel(state.intensity, action.level, action.now),
+      };
+
+    case 'startStrict':
+      return {
+        ...state,
+        intensity: startStrict(state.intensity, action.until, action.now),
+      };
+
+    case 'endStrictEarly':
+      return { ...state, intensity: endStrictEarly(state.intensity, action.now) };
+
+    case 'cancelPendingLevel':
+      return { ...state, intensity: cancelPending(state.intensity) };
+
     case 'setReelPip':
       return { ...state, reels: { ...state.reels, showPip: action.show } };
 
@@ -656,7 +734,10 @@ export function settingsReducer(
       return { ...state, practice: { lastCompletedDate: action.date } };
 
     case 'completeOnboarding':
-      return { ...state, onboarding: { completed: true, step: 'ready' } };
+      return {
+        ...state,
+        onboarding: { ...state.onboarding, completed: true, step: 'ready' },
+      };
   }
 }
 

@@ -10,6 +10,9 @@ import App from '../App';
 import { SETTINGS_KEY } from '../src/services/settingsStorage';
 import { DEFAULT_SETTINGS } from '../src/state/settings';
 
+// Renders the whole app; under a full parallel run it can exceed Jest's 5 s default.
+jest.setTimeout(30_000);
+
 const stored = async () =>
   JSON.parse((await AsyncStorage.getItem(SETTINGS_KEY)) ?? 'null');
 
@@ -134,7 +137,7 @@ describe('onboarding with Pip', () => {
     await press('Continue');
     // 6 h/day, age band midpoint 21 -> 59 years ahead -> 14.75 -> "15 years"
     expect(screen.getByText('15 years')).toBeTruthy();
-    expect(screen.getByText(/not a prediction/)).toBeTruthy();
+    expect(screen.getByText(/not a prediction/i)).toBeTruthy();
     await press('I want that time back');
     await press('Study');
     await press('Continue');
@@ -148,7 +151,10 @@ describe('onboarding with Pip', () => {
       'accessibilityAction',
       { nativeEvent: { actionName: 'activate' } },
     );
-    expect(await screen.findByText("You're all set, Asha! 🎉")).toBeTruthy();
+    // The pledge moves on after a short timer; allow for a busy test machine.
+    expect(
+      await screen.findByText("You're all set, Asha! 🎉", {}, { timeout: 5000 }),
+    ).toBeTruthy();
     await fireEvent.press(await screen.findByLabelText("Let's begin"));
 
     expect(await screen.findByText(/^(Good \w+|Still up), Asha\.$/)).toBeTruthy();

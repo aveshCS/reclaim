@@ -9,7 +9,16 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Card, Chip, CountUp, Pip, Txt } from '../../components';
+import {
+  Button,
+  Card,
+  Chip,
+  CountUp,
+  Pip,
+  Pop,
+  Tile,
+  Txt,
+} from '../../components';
 import type { PipMood } from '../../components/Pip';
 import { pauseGate, REEL_APPS, ReelDayStats } from '../../native/pauseGate';
 import { useSettings } from '../../state/SettingsContext';
@@ -17,6 +26,7 @@ import { normalizeSite, REEL_LIMITS } from '../../state/settings';
 import { colors, fonts, radius } from '../../theme/tokens';
 import { localDateKey, startOfLocalDayDaysAgo, weekdayShort } from '../../utils/time';
 import { usePauseService } from './PauseSetup';
+import { DisclosureRows } from './DisclosureRows';
 
 export const SUGGESTED_SITES = [
   'youtube.com',
@@ -27,7 +37,7 @@ export const SUGGESTED_SITES = [
   'tiktok.com',
 ];
 
-type Kind = 'web' | 'reels';
+export type Kind = 'web' | 'reels';
 
 const DISCLOSURE: Record<
   Kind,
@@ -48,7 +58,7 @@ const DISCLOSURE: Record<
     title: 'The reels counter notices short-video swipes',
     why: 'To count how many Reels and Shorts you scroll through each day, show Pip with the count on top of them (you can switch Pip off), and, if you want, pause you at a daily limit.',
     reads:
-      'Only that the short-video player in YouTube or Instagram moved to the next video. RECLAIM recognises the player by its name and position in the app\'s layout.',
+      'Only that the short-video player in YouTube or Instagram moved to the next video, recognised by its name and position in the app\'s layout. In your browser, only whether the address is a Shorts or Reels page and whether it changed.',
     never:
       'It does not read which videos you watch, captions, comments, messages or anything else on screen. It never taps or scrolls for you.',
     stored:
@@ -56,6 +66,55 @@ const DISCLOSURE: Record<
     agree: 'I understand and agree to RECLAIM noticing short-video swipes for this',
   },
 };
+
+const ROWS: Record<Kind, { icon: string; text: string }[]> = {
+  web: [
+    { icon: '🌐', text: 'A breath before the sites you chose.' },
+    { icon: '👀', text: 'Sees only the address bar, cut to the site name.' },
+    { icon: '🚫', text: 'Never reads page content, typing, passwords or history.' },
+    { icon: '📱', text: 'Keeps your site list and counts. No addresses.' },
+    { icon: '🔓', text: 'Switch it off any time.' },
+  ],
+  reels: [
+    { icon: '🎞', text: 'Counts Shorts and Reels. Optional daily limit.' },
+    { icon: '👀', text: 'Sees only that the short-video player moved on.' },
+    { icon: '🚫', text: 'Never sees which videos you watch, captions or comments.' },
+    { icon: '📱', text: 'One number per app per day, on this phone.' },
+    { icon: '🔓', text: 'Switch it off any time.' },
+  ],
+};
+
+/** What the website pause / reels counter reads. Shown in its own disclosure and in onboarding. */
+export function FeatureDisclosureBody({ kind }: { kind: Kind }) {
+  const d = DISCLOSURE[kind];
+  return (
+    <DisclosureRows rows={ROWS[kind]}>
+        <Card>
+          <Txt variant="bodyBold">Why</Txt>
+          <Txt>{d.why}</Txt>
+          <Txt variant="bodyBold">What it reads</Txt>
+          <Txt>{d.reads}</Txt>
+          <Txt variant="bodyBold">What it never does</Txt>
+          <Txt>{d.never}</Txt>
+          <Txt variant="bodyBold">What is stored</Txt>
+          <Txt>{d.stored}</Txt>
+          <Txt variant="bodyBold">How it works</Txt>
+          <Txt>
+            It uses RECLAIM's Accessibility service (the same one as the app
+            pause). If that service is off, you'll be taken to Android Settings
+            to switch it on.
+          </Txt>
+          <Txt variant="bodyBold">Your control</Txt>
+          <Txt>
+            Switch it off here at any time. To remove the permission completely,
+            turn RECLAIM off in Android Settings › Accessibility.
+          </Txt>
+        </Card>
+    </DisclosureRows>
+  );
+}
+
+export const featureAgreeLabel = (kind: Kind) => DISCLOSURE[kind].agree;
 
 /** Its own prominent disclosure, as Google Play requires for each kind of on-screen data. */
 export function FeatureDisclosure({
@@ -88,27 +147,7 @@ export function FeatureDisclosure({
       >
         <Txt variant="label">Before you switch this on</Txt>
         <Txt variant="title">{d.title}</Txt>
-        <Card>
-          <Txt variant="bodyBold">Why</Txt>
-          <Txt>{d.why}</Txt>
-          <Txt variant="bodyBold">What it reads</Txt>
-          <Txt>{d.reads}</Txt>
-          <Txt variant="bodyBold">What it never does</Txt>
-          <Txt>{d.never}</Txt>
-          <Txt variant="bodyBold">What is stored</Txt>
-          <Txt>{d.stored}</Txt>
-          <Txt variant="bodyBold">How it works</Txt>
-          <Txt>
-            It uses RECLAIM's Accessibility service (the same one as the app
-            pause). If that service is off, you'll be taken to Android Settings
-            to switch it on.
-          </Txt>
-          <Txt variant="bodyBold">Your control</Txt>
-          <Txt>
-            Switch it off here at any time. To remove the permission completely,
-            turn RECLAIM off in Android Settings › Accessibility.
-          </Txt>
-        </Card>
+        <FeatureDisclosureBody kind={kind} />
         <Chip block label={d.agree} selected={ticked} onPress={() => setTicked(t => !t)} />
         <Button label="Agree and switch on" disabled={!ticked} onPress={onAgree} />
         <Button label="No thanks" variant="ghost" onPress={onDecline} />
@@ -174,21 +213,23 @@ export function WebsitePause() {
 
   const custom = web.sites.filter(x => !SUGGESTED_SITES.includes(x));
 
+  const n = web.sites.length;
   return (
-    <Card tone="butter">
-      <Txt variant="label" color={colors.ink}>
-        Website pause
-      </Txt>
-      <Txt variant="heading">The same breath, in your browser</Txt>
-      <Txt color={colors.ink}>
-        Endless feeds also live in the browser. Choose sites, and RECLAIM shows
-        the breathing pause when you open one.
-      </Txt>
+    <Tile
+      icon="🌐"
+      label="Website pause"
+      summary={!web.enabled ? 'Off' : on === false ? 'One step left' : `On · ${n} ${n === 1 ? 'site' : 'sites'}`}
+      tone="butter"
+      defaultOpen={!web.enabled}
+    >
       {!web.enabled ? (
-        <Button label="Set up the website pause" onPress={() => setDisclose(true)} />
+        <>
+          <Txt>The same breath, for feeds in your browser.</Txt>
+          <Button label="Set up the website pause" onPress={() => setDisclose(true)} />
+        </>
       ) : (
         <>
-          <Txt variant="bodyBold">Pause before these sites (choose any)</Txt>
+          <Txt variant="bodyBold">Pause before (choose any)</Txt>
           <View style={styles.chips}>
             {[...SUGGESTED_SITES, ...custom].map(site => (
               <Chip
@@ -227,8 +268,7 @@ export function WebsitePause() {
             </Txt>
           ) : null}
           <Txt variant="caption">
-            Works in Chrome, Brave, Edge, Firefox, Samsung Internet, Opera and
-            DuckDuckGo. Other browsers aren't recognised yet.
+            Chrome, Brave, Edge, Firefox, Samsung Internet, Opera, DuckDuckGo.
           </Txt>
           <OffLink label="Turn the website pause off" onPress={() => s.setWeb(false)} />
         </>
@@ -248,7 +288,7 @@ export function WebsitePause() {
           }
         }}
       />
-    </Card>
+    </Tile>
   );
 }
 
@@ -280,6 +320,21 @@ export function useReelStats(enabled: boolean) {
   }, [enabled]);
   const today = days.length ? days[days.length - 1] : null;
   return { days, today };
+}
+
+/** "YouTube Shorts: 15 · Instagram Reels: 8 · In your browser: 3" */
+export function reelBreakdown(byApp: Record<string, number>): string {
+  const known = new Set(REEL_APPS.map(a => a.packageName));
+  const parts = REEL_APPS.filter(a => byApp[a.packageName]).map(
+    a => `${a.label}: ${byApp[a.packageName]}`,
+  );
+  const browser = Object.entries(byApp)
+    .filter(([pkg]) => !known.has(pkg))
+    .reduce((n, [, v]) => n + v, 0);
+  if (browser) {
+    parts.push(`In your browser: ${browser}`);
+  }
+  return parts.join(' · ');
 }
 
 /** Pip reacts to today's count without scolding. Never wilts or shrinks. */
@@ -321,19 +376,37 @@ export function ReelsCounter() {
   const max = Math.max(1, reels.limit, ...days.map(d => d.total));
   const week = days.reduce((a, d) => a + d.total, 0);
 
+  const ready = reels.enabled && on !== false;
+  const summary = !reels.enabled
+    ? 'Off'
+    : on === false
+    ? 'One step left'
+    : `${count} ${count === 1 ? 'reel' : 'reels'} today${reels.limit ? ` · limit ${reels.limit}` : ''}`;
+
   return (
-    <Card tone="orange">
-      <Txt variant="label" color={colors.ink}>
-        Reels counter
-      </Txt>
-      <Txt variant="heading">How many did you scroll?</Txt>
+    <Tile
+      icon="🎞"
+      label="Reels counter"
+      summary={summary}
+      tone="orange"
+      defaultOpen={!ready}
+      preview={
+        ready ? (
+          <View style={styles.row}>
+            <Pop trigger={count}>
+              <Pip size={72} mood={mood} />
+            </Pop>
+            <View style={styles.flex}>
+              <CountUp value={count} variant="display" />
+              <Txt variant="bodyBold">{line}</Txt>
+            </View>
+          </View>
+        ) : null
+      }
+    >
       {!reels.enabled ? (
         <>
-          <Txt color={colors.ink}>
-            Counts YouTube Shorts and Instagram Reels as you swipe, so you see
-            the real number. Add a daily limit if you like, and RECLAIM pauses
-            you when you reach it.
-          </Txt>
+          <Txt>See the real number of Shorts and Reels you swipe. Pip keeps count.</Txt>
           <Button label="Count my reels" onPress={() => setDisclose(true)} />
         </>
       ) : (
@@ -342,23 +415,8 @@ export function ReelsCounter() {
             <ServiceOff onOpen={() => pauseGate.openSettings().then(check)} />
           ) : (
             <>
-              <View style={styles.row}>
-                <Pip size={76} mood={mood} bob={false} />
-                <View style={styles.flex}>
-                  <CountUp value={count} variant="display" />
-                  <Txt variant="bodyBold">
-                    {count === 1 ? 'reel today' : 'reels today'}
-                    {reels.limit ? ` · limit ${reels.limit}` : ''}
-                  </Txt>
-                </View>
-              </View>
-              <Txt>{line}</Txt>
               {today && count > 0 ? (
-                <Txt variant="caption">
-                  {REEL_APPS.filter(a => today.byApp[a.packageName])
-                    .map(a => `${a.label}: ${today.byApp[a.packageName]}`)
-                    .join(' · ')}
-                </Txt>
+                <Txt variant="caption">{reelBreakdown(today.byApp)}</Txt>
               ) : null}
               {days.length ? (
                 <View
@@ -383,7 +441,7 @@ export function ReelsCounter() {
                   ))}
                 </View>
               ) : null}
-              {week ? <Txt variant="caption">This week: {week} reels.</Txt> : null}
+              {week ? <Txt variant="caption">This week: {week}</Txt> : null}
             </>
           )}
           <Txt variant="bodyBold">Daily limit (choose one)</Txt>
@@ -406,8 +464,7 @@ export function ReelsCounter() {
             onPress={() => s.setReelPip(!reels.showPip)}
           />
           <Txt variant="caption">
-            Counts each new reel you swipe to. Facebook and Snapchat can't be
-            counted yet. The count may miss reels if an app changes its layout.
+            Not yet: Facebook and Snapchat apps.
           </Txt>
           <OffLink label="Turn the reels counter off" onPress={() => s.setReels(false)} />
         </>
@@ -424,7 +481,7 @@ export function ReelsCounter() {
           }
         }}
       />
-    </Card>
+    </Tile>
   );
 }
 

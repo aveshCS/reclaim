@@ -51,10 +51,7 @@ export function AppTimeSection() {
       <Card>
         <Txt variant="label">App time</Txt>
         <Txt variant="heading">See where your time goes (optional)</Txt>
-        <Txt>
-          RECLAIM can show time spent in apps you choose. It never reads
-          messages, notifications or what is on your screen.
-        </Txt>
+        <Txt>⏱ Time in apps you pick. Never your messages or screen.</Txt>
         <Button
           label="Set up app time"
           variant="secondary"

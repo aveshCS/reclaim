@@ -8,17 +8,18 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Card, Chip, Pip, Txt } from '../../components';
+import { Button, Card, Chip, Tile, Txt } from '../../components';
 import { pauseGate, PauseDayStats, planLine } from '../../native/pauseGate';
 import { useSettings } from '../../state/SettingsContext';
 import { colors, radius } from '../../theme/tokens';
 import { localDateKey, startOfLocalDayDaysAgo } from '../../utils/time';
 import { AppPicker } from '../usage/AppPicker';
+import { DisclosureRows } from './DisclosureRows';
 
 /** Keeps the native pause configuration in step with settings. Render once near the root. */
 export function PauseGateSync() {
   const { settings } = useSettings();
-  const { gate, plan, web, reels } = settings;
+  const { gate, plan, web, reels, intensity } = settings;
   const key = JSON.stringify([gate, plan]);
   const extrasKey = JSON.stringify([web, reels]);
   useEffect(() => {
@@ -31,6 +32,12 @@ export function PauseGateSync() {
     // key captures every relevant field
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
+  const intensityKey = JSON.stringify(intensity);
+  useEffect(() => {
+    pauseGate.configureIntensity(intensity);
+    // intensityKey captures every field
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intensityKey]);
   useEffect(() => {
     pauseGate.configureExtras(
       web.enabled,
@@ -63,38 +70,18 @@ export function usePauseService() {
   return { on, check };
 }
 
-/**
- * Google Play requires a separate, prominent in-app disclosure with affirmative consent
- * before an app that is not an accessibility tool asks the user to enable its
- * AccessibilityService. This is that screen. It is not bundled with any other consent.
- */
-export function PauseDisclosure({
-  visible,
-  onAgree,
-  onDecline,
-}: {
-  visible: boolean;
-  onAgree: () => void;
-  onDecline: () => void;
-}) {
-  const insets = useSafeAreaInsets();
-  const [ticked, setTicked] = useState(false);
-  useEffect(() => {
-    if (visible) {
-      setTicked(false);
-    }
-  }, [visible]);
+const APP_ROWS = [
+  { icon: '🫧', text: 'A breath before the apps you chose.' },
+  { icon: '👀', text: 'Sees only which app opens.' },
+  { icon: '🚫', text: 'Never reads your screen, messages or typing.' },
+  { icon: '📱', text: 'Stays on this phone. Nothing is sent.' },
+  { icon: '🔓', text: 'Switch it off any time.' },
+];
+
+/** What the app pause accesses. Shown in its own disclosure and in onboarding. */
+export function AppPauseDisclosureBody() {
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onDecline}>
-      <ScrollView
-        style={styles.modalRoot}
-        contentContainerStyle={[
-          styles.modal,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 },
-        ]}
-      >
-        <Txt variant="label">Before you switch this on</Txt>
-        <Txt variant="title">RECLAIM uses Android's Accessibility service</Txt>
+    <DisclosureRows rows={APP_ROWS}>
         <Card>
           <Txt variant="bodyBold">Why</Txt>
           <Txt>
@@ -131,9 +118,49 @@ export function PauseDisclosure({
             Android Settings › Accessibility at any time.
           </Txt>
         </Card>
+    </DisclosureRows>
+  );
+}
+
+export const APP_PAUSE_AGREE =
+  'I understand and agree to RECLAIM using the Accessibility service for this';
+
+/**
+ * Google Play requires a separate, prominent in-app disclosure with affirmative consent
+ * before an app that is not an accessibility tool asks the user to enable its
+ * AccessibilityService. This is that screen. It is not bundled with any other consent.
+ */
+export function PauseDisclosure({
+  visible,
+  onAgree,
+  onDecline,
+}: {
+  visible: boolean;
+  onAgree: () => void;
+  onDecline: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const [ticked, setTicked] = useState(false);
+  useEffect(() => {
+    if (visible) {
+      setTicked(false);
+    }
+  }, [visible]);
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onDecline}>
+      <ScrollView
+        style={styles.modalRoot}
+        contentContainerStyle={[
+          styles.modal,
+          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 },
+        ]}
+      >
+        <Txt variant="label">Before you switch this on</Txt>
+        <Txt variant="title">RECLAIM uses Android's Accessibility service</Txt>
+        <AppPauseDisclosureBody />
         <Chip
           block
-          label="I understand and agree to RECLAIM using the Accessibility service for this"
+          label={APP_PAUSE_AGREE}
           selected={ticked}
           onPress={() => setTicked(t => !t)}
         />
@@ -202,35 +229,38 @@ export function PauseSetup() {
     />
   );
 
-  return (
-    <Card tone="sky">
-      <View style={styles.row}>
-        <Pip size={70} mood="calm" bob={false} />
-        <View style={styles.flex}>
-          <Txt variant="label" color={colors.ink}>
-            Mindful pause
-          </Txt>
-          <Txt variant="heading">A breath before you scroll</Txt>
-        </View>
-      </View>
-      <Txt color={colors.ink}>
-        When you open an app you chose, RECLAIM shows a 5-second breathing pause
-        with "Not now" or "Open anyway". In a 6-week study of a similar pause,
-        people tried to open those apps about 37% less.
-      </Txt>
+  const apps = gate.packages.length;
+  const summary = !gate.enabled
+    ? 'Off'
+    : on === false
+    ? 'One step left'
+    : apps === 0
+    ? 'Choose your apps'
+    : week.shown
+    ? `${week.shown} pauses · ${week.notNow} × Not now`
+    : `On · ${apps} ${apps === 1 ? 'app' : 'apps'}`;
 
+  return (
+    <Tile
+      icon="🫧"
+      label="App pause"
+      summary={summary}
+      tone="sky"
+      defaultOpen={!gate.enabled || apps === 0}
+    >
       {!gate.enabled ? (
-        <Button label="Set up the pause" onPress={() => setDisclose(true)} />
+        <>
+          <Txt>A 5-second breath before the apps you choose.</Txt>
+          <Txt variant="caption">In a 6-week study: about 37% fewer opens.</Txt>
+          <Button label="Set up the pause" onPress={() => setDisclose(true)} />
+        </>
       ) : (
         <>
           <Txt variant="bodyBold">
-            Apps:{' '}
-            {gate.packages.length
-              ? gate.packages.map(a => a.label).join(', ')
-              : 'none chosen yet'}
+            {apps ? gate.packages.map(a => a.label).join(', ') : 'No apps yet'}
           </Txt>
           <Button
-            label={gate.packages.length ? 'Edit apps' : 'Choose apps'}
+            label={apps ? 'Edit apps' : 'Choose apps'}
             variant="secondary"
             onPress={() => setPicker(true)}
           />
@@ -248,11 +278,8 @@ export function PauseSetup() {
           </View>
           {on === false ? (
             <View style={styles.warn}>
-              <Txt variant="bodyBold">One step left</Txt>
-              <Txt>
-                In Android Settings › Accessibility, open "RECLAIM mindful
-                pause" and switch it on, then come back.
-              </Txt>
+              <Txt variant="bodyBold">Switch it on in Android</Txt>
+              <Txt>Accessibility › RECLAIM mindful pause › On.</Txt>
               <Button
                 label="Open Accessibility settings"
                 onPress={() => pauseGate.openSettings().then(check)}
@@ -261,13 +288,10 @@ export function PauseSetup() {
           ) : on ? (
             <Txt variant="bodyBold" color={colors.leaf}>
               ✓ The pause is on.
-              {week.shown
-                ? ` This week: ${week.shown} pauses, ${week.notNow} times you chose "Not now".`
-                : ''}
             </Txt>
           ) : null}
           {plan ? (
-            <Txt variant="caption">Shown on the pause: “{planLine(plan)}”</Txt>
+            <Txt variant="caption">On the pause: “{planLine(plan)}”</Txt>
           ) : null}
           <Pressable
             accessibilityRole="button"
@@ -279,12 +303,6 @@ export function PauseSetup() {
               Turn the pause off
             </Txt>
           </Pressable>
-          {on ? (
-            <Txt variant="caption">
-              To remove the permission completely, switch it off in Android
-              Settings › Accessibility.
-            </Txt>
-          ) : null}
         </>
       )}
 
@@ -301,7 +319,7 @@ export function PauseSetup() {
         }}
       />
       {pickerEl}
-    </Card>
+    </Tile>
   );
 }
 

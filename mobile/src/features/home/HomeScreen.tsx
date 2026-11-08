@@ -16,12 +16,13 @@ import {
 import type { RootTabParamList } from '../../navigation/types';
 import { useSettings } from '../../state/SettingsContext';
 import { PRIORITIES } from '../../state/settings';
-import { colors, radius, STICKER_OFFSET } from '../../theme/tokens';
+import { colors, radius, spacing, STICKER_OFFSET } from '../../theme/tokens';
 import { haptic } from '../../utils/haptics';
 import { formatClock, formatDuration, localDateKey } from '../../utils/time';
 import { DashboardData, useDashboard } from '../dashboard/useDashboard';
 import { WeekBars } from '../dashboard/WeekBars';
 import { PipCompanion } from './PipCompanion';
+import { TodayWins } from './TodayWins';
 import { ResetScreen } from '../reset/ResetScreen';
 import { resetStatus } from '../reset/resetModel';
 import { RESET_DAYS } from '../../state/settings';
@@ -106,18 +107,15 @@ function TodayCard({
       <Txt variant="caption">Updated {formatClock(data.updatedAt)}</Txt>
       {b.kind === 'ready' ? (
         <Txt color={colors.ink}>
-          Your usual day: {formatDuration(b.avgMs)} (last {b.days} full days)
+          Your usual day: {formatDuration(b.avgMs)}
         </Txt>
       ) : (
         <Txt color={colors.ink}>
-          Building your baseline: {b.completeDays} of {b.needed} full days so
-          far. No comparisons until then.
+          Building your baseline: {b.completeDays} of {b.needed} days.
         </Txt>
       )}
       {data.todayPartial ? (
-        <Txt variant="caption">
-          Android's history starts part-way through today, so this may be low.
-        </Txt>
+        <Txt variant="caption">Android's history starts part-way through today.</Txt>
       ) : null}
 
       <WeekBars
@@ -142,10 +140,7 @@ function TodayCard({
         </View>
       ))}
 
-      <Txt variant="caption">
-        Estimates from Android for the apps you chose. They show time, not what
-        you did or how you felt.
-      </Txt>
+      <Txt variant="caption">Android's estimate: time, not how you felt.</Txt>
       <Button label="Refresh" variant="secondary" onPress={onRefresh} />
       <Button label="Pause app time" variant="ghost" onPress={onPause} />
     </Card>
@@ -241,7 +236,7 @@ export function HomeScreen() {
   switch (state.kind) {
     case 'ready':
       appTime = (
-        <>
+        <View style={styles.stack}>
           <TodayCard
             data={state.data}
             onRefresh={refresh}
@@ -252,7 +247,7 @@ export function HomeScreen() {
             onBreathe={() => setPauseOpen(true)}
             onFocus={() => navigation.navigate('Focus')}
           />
-        </>
+        </View>
       );
       break;
     case 'loading':
@@ -326,6 +321,8 @@ export function HomeScreen() {
           onFocus={() => navigation.navigate('Focus')}
         />
       </FadeIn>
+
+      <TodayWins />
 
       <FadeIn delay={130}>
         {(() => {
@@ -447,6 +444,7 @@ const styles = StyleSheet.create({
   },
   link: { textDecorationLine: 'underline', color: colors.inkSoft },
   tiles: { flexDirection: 'row', gap: 12 },
+  stack: { gap: spacing.lg },
   tileOuter: {
     flex: 1,
     paddingRight: STICKER_OFFSET,
@@ -462,6 +460,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
   },
   tile: {
+    flex: 1,
     borderRadius: radius.lg,
     borderWidth: 2,
     borderColor: colors.line,

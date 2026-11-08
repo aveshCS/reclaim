@@ -157,7 +157,11 @@ describe('sanitizeSettings', () => {
       consents: [],
     });
     expect(s.profile).toEqual(DEFAULT_SETTINGS.profile);
-    expect(s.onboarding).toEqual({ completed: true, step: 'hello' });
+    expect(s.onboarding).toEqual({
+      completed: true,
+      step: 'hello',
+      protect: 'ask',
+    });
     expect(s.focusMinutes).toBe(40);
   });
 

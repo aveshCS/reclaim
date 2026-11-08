@@ -27,6 +27,8 @@ import {
   ResetChallenge,
 } from '../state/settings';
 
+import { sanitizeIntensity } from '../state/intensity';
+
 export const SETTINGS_KEY = 'reclaim.settings.v1';
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -169,7 +171,14 @@ export function sanitizeSettings(raw: unknown): AppSettings {
 
   return {
     schemaVersion: 1,
-    onboarding: { completed: onboarding.completed === true, step },
+    onboarding: {
+      completed: onboarding.completed === true,
+      step,
+      protect:
+        onboarding.protect === 'yes' || onboarding.protect === 'later'
+          ? onboarding.protect
+          : 'ask',
+    },
     profile: parseProfile(raw.profile),
     priorities: listOf<PriorityId>(PRIORITIES, raw.priorities),
     focusMinutes: clampFocusMinutes(
@@ -197,6 +206,7 @@ export function sanitizeSettings(raw: unknown): AppSettings {
       limit: clampReelLimit(isRecord(raw.reels) ? raw.reels.limit : 0),
       showPip: !(isRecord(raw.reels) && raw.reels.showPip === false),
     },
+    intensity: sanitizeIntensity(raw.intensity, Date.now()),
     plan: parsePlan(raw.plan),
     reset: parseReset(raw.reset),
     practice: {

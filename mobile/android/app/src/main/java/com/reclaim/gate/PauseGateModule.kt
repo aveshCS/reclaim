@@ -118,6 +118,28 @@ class PauseGateModule(private val context: ReactApplicationContext) :
     }
   }
 
+  /** The intensity ladder (see Intensity.kt). Times are epoch ms; 0 = none. */
+  @ReactMethod
+  fun configureIntensity(
+      base: Double,
+      pendingLevel: Double,
+      pendingAt: Double,
+      strictUntil: Double,
+      promise: Promise
+  ) {
+    try {
+      GateStore(context).intensity =
+          Intensity.Plan(
+              base.toInt().coerceIn(Intensity.AWARE, Intensity.FIRM),
+              pendingLevel.toInt(),
+              pendingAt.toLong(),
+              strictUntil.toLong())
+      promise.resolve(true)
+    } catch (e: Exception) {
+      promise.reject("GATE_CONFIG_FAILED", e)
+    }
+  }
+
   /** Reels counted per local date: [{date, total, byApp: {pkg: n}}]. */
   @ReactMethod
   fun getReelStats(dates: ReadableArray, promise: Promise) {

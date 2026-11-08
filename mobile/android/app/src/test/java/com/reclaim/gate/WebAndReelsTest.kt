@@ -37,6 +37,22 @@ class WebAndReelsTest {
   }
 
   @Test
+  fun `recognises a single short video page in the browser`() {
+    assertEquals(WebMatcher.ShortVideo("youtube.com", "AbC123"), WebMatcher.shortVideo("m.youtube.com/shorts/AbC123"))
+    assertEquals("AbC123", WebMatcher.shortVideo("https://www.youtube.com/shorts/AbC123?feature=share")?.id)
+    assertEquals("x1", WebMatcher.shortVideo("instagram.com/reels/x1/")?.id)
+    assertEquals("x2", WebMatcher.shortVideo("www.instagram.com/reel/x2")?.id)
+    assertEquals("9", WebMatcher.shortVideo("m.facebook.com/reel/9")?.id)
+    assertEquals("77", WebMatcher.shortVideo("tiktok.com/@someone/video/77")?.id)
+    // Not a single short video.
+    assertNull(WebMatcher.shortVideo("youtube.com/watch?v=abc"))
+    assertNull(WebMatcher.shortVideo("youtube.com/shorts"))
+    assertNull(WebMatcher.shortVideo("youtube.com"))
+    assertNull(WebMatcher.shortVideo("notyoutube.com/shorts/abc"))
+    assertNull(WebMatcher.shortVideo("search shorts"))
+  }
+
+  @Test
   fun `knows the supported browsers`() {
     assertTrue(WebMatcher.isBrowser("com.android.chrome"))
     assertTrue(WebMatcher.isBrowser("com.brave.browser"))

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import {
   Button,
   Card,
+  CelebratePip,
   FadeIn,
   LoadingState,
   Pip,
@@ -107,10 +108,7 @@ function DrillHost({
         <RecallDrill task={picked.recall} seed={seed} onDone={onDone} />
       ) : (
         <View style={styles.gap}>
-          <Txt>
-            Nothing to recall yet. Do a Deep read today, or leave a note after a
-            focus session, and Pip will ask you about it tomorrow.
-          </Txt>
+          <Txt>Nothing to recall yet. Do a Deep read, and Pip asks tomorrow.</Txt>
           <Button
             label="Okay"
             onPress={() =>
@@ -239,19 +237,16 @@ export function TrainScreen() {
     );
     return (
       <ScreenContainer key="celebrate">
-        <FadeIn style={styles.center}>
-          <Pip size={170} mood="cheer" growth={0.4} />
-        </FadeIn>
+        <CelebratePip size={170} growth={0.4} />
         <SectionHeading
           kicker="Workout complete"
           title="A new flower for Pip's garden!"
-          subtitle="That's today's workout. Go enjoy your day, and come back tomorrow for a new mix."
+          subtitle="See you tomorrow for a new mix."
         />
         <Card tone="leaf">
           <Garden flowers={flowers} />
           <Txt variant="caption">
-            {flowers.length} flower{flowers.length === 1 ? '' : 's'} so far.
-            They never wilt.
+            🌸 {flowers.length} so far. They never wilt.
           </Txt>
         </Card>
         <Card>
@@ -355,10 +350,7 @@ export function TrainScreen() {
             </View>
           ))}
           {done ? (
-            <Txt color={colors.ink}>
-              Come back tomorrow for a new mix. Extra practice is below if you
-              want it.
-            </Txt>
+            <Txt color={colors.ink}>✓ Done. New mix tomorrow.</Txt>
           ) : (
             <Button
               label={w.done.length ? 'Continue workout' : 'Start workout'}
@@ -392,9 +384,7 @@ export function TrainScreen() {
             </View>
           ))}
         </View>
-        <Txt variant="caption">
-          No streaks to lose. Every day you show up simply adds a flower.
-        </Txt>
+        <Txt variant="caption">No streaks to lose. Each day adds a flower.</Txt>
       </Card>
 
       <Card tone="leaf">
@@ -441,10 +431,7 @@ export function TrainScreen() {
             ))}
           </>
         ) : null}
-        <Txt variant="caption">
-          After 6 tries, you'll see your first 5 vs your latest 5. Progress is
-          against yourself only.
-        </Txt>
+        <Txt variant="caption">After 6 tries: your first 5 vs your latest 5.</Txt>
       </Card>
 
       <Txt variant="label" color={colors.inkSoft}>
@@ -479,8 +466,7 @@ export function TrainScreen() {
         ))}
 
       <Txt variant="caption" center>
-        Practice for learning, not a clinical test. RECLAIM never gives an IQ
-        score or a diagnosis.
+        Practice, not a test. No IQ scores, no diagnosis.
       </Txt>
     </ScreenContainer>
   );

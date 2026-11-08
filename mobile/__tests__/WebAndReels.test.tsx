@@ -16,7 +16,7 @@ import {
   settingsReducer,
 } from '../src/state/settings';
 import { pauseGate, ReelDayStats } from '../src/native/pauseGate';
-import { reelMood } from '../src/features/pause/WebAndReels';
+import { reelBreakdown, reelMood } from '../src/features/pause/WebAndReels';
 import { FOCUS_KEY } from '../src/features/focus/FocusContext';
 import { localDateKey } from '../src/utils/time';
 
@@ -35,6 +35,7 @@ jest.mock('../src/native/pauseGate', () => {
       clearStats: jest.fn(async () => {}),
       configureExtras: jest.fn(async () => {}),
       getReelStats: jest.fn(async () => []),
+      configureIntensity: jest.fn(async () => {}),
     },
   };
 });
@@ -114,6 +115,19 @@ describe('settings for websites and reels', () => {
   });
 });
 
+describe('reel breakdown', () => {
+  it('names the apps and groups browsers together', () => {
+    expect(
+      reelBreakdown({
+        'com.google.android.youtube': 15,
+        'com.android.chrome': 2,
+        'com.brave.browser': 1,
+      }),
+    ).toBe('YouTube Shorts: 15 · In your browser: 3');
+    expect(reelBreakdown({})).toBe('');
+  });
+});
+
 describe('Pip on the reels card', () => {
   it('reacts kindly and never scolds', () => {
     expect(reelMood(0, 0).mood).toBe('cheer');
@@ -148,6 +162,28 @@ describe('website pause and reels counter screens', () => {
     jest.restoreAllMocks();
   });
 
+  it('Home shows today at a glance: Not now, reels and focus minutes', async () => {
+    await AsyncStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({
+        ...DEFAULT_SETTINGS,
+        onboarding: { completed: true, step: 'ready' },
+        gate: { enabled: true, packages: [], allowMinutes: 5 },
+        reels: { enabled: true, limit: 0, showPip: true },
+      }),
+    );
+    gate.getStats.mockResolvedValue([
+      { date: localDateKey(NOW), shown: 6, notNow: 4, opened: 2 },
+    ]);
+    gate.getReelStats.mockResolvedValue([
+      { date: localDateKey(NOW), total: 12, byApp: { 'com.google.android.youtube': 12 } },
+    ]);
+    await render(<App />);
+    expect(
+      await screen.findByLabelText('Today: 4 Not now, 12 reels, 0 focus min'),
+    ).toBeTruthy();
+  });
+
   it('the reels counter needs its own tick-box consent before it switches on', async () => {
     await render(<App />);
     await fireEvent.press(await screen.findByLabelText('Insights tab'));
@@ -155,7 +191,7 @@ describe('website pause and reels counter screens', () => {
     expect(
       await screen.findByText('The reels counter notices short-video swipes'),
     ).toBeTruthy();
-    expect(screen.getByText(/does not read which videos you watch/)).toBeTruthy();
+    expect(screen.getByText(/Never sees which videos you watch/)).toBeTruthy();
 
     await press('Agree and switch on'); // disabled until ticked
     expect((await stored()).reels.enabled).toBe(false);
@@ -193,6 +229,7 @@ describe('website pause and reels counter screens', () => {
     await render(<App />);
     await fireEvent.press(await screen.findByLabelText('Insights tab'));
     expect(await screen.findByLabelText('23')).toBeTruthy();
+    await press(/^Reels counter: 23 reels today/); // open the tile
     expect(screen.getByText('YouTube Shorts: 15 · Instagram Reels: 8')).toBeTruthy();
     await press('40');
     await waitFor(() =>
@@ -211,7 +248,7 @@ describe('website pause and reels counter screens', () => {
     expect(
       await screen.findByText("The website pause reads your browser's address bar"),
     ).toBeTruthy();
-    expect(screen.getByText(/does not read page content/)).toBeTruthy();
+    expect(screen.getByText(/Never reads page content/)).toBeTruthy();
     await press(/reading my browser's address bar/);
     await press('Agree and switch on');
 

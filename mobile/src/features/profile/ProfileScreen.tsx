@@ -118,10 +118,7 @@ export function ProfileScreen() {
 
       <Card>
         <Txt variant="heading">Your if-then plan</Txt>
-        <Txt variant="caption">
-          Deciding ahead what you'll do in a tricky moment helps you follow
-          through. It also appears on the mindful pause.
-        </Txt>
+        <Txt variant="caption">Decide now, act later. Shown on the pause too.</Txt>
         {s.settings.plan ? (
           <Txt variant="bodyBold">
             “When {s.settings.plan.when}, I will {s.settings.plan.then}.”
@@ -165,9 +162,8 @@ export function ProfileScreen() {
           />
         </View>
         <Txt variant="caption">
-          RECLAIM keeps daily totals for your chosen apps on this phone for{' '}
-          {RETENTION_DAYS} days, so it can learn your usual. Turning app time
-          off deletes them.
+          Daily totals stay on this phone for {RETENTION_DAYS} days. Turning off
+          deletes them.
         </Txt>
         {choice === 'requested' ? (
           <View style={styles.switchRow}>
@@ -196,17 +192,13 @@ export function ProfileScreen() {
 
       <Card tone="sand" flat>
         <Txt variant="heading">Privacy controls</Txt>
-        <Txt>
-          Everything here is stored only on this phone. Data export and account
-          deletion arrive with accounts.
-        </Txt>
+        <Txt>📱 Everything stays on this phone.</Txt>
         {historyDeleted ? (
           <Txt variant="bodyBold">App-time history deleted.</Txt>
         ) : confirmDelete ? (
           <>
             <Txt variant="bodyBold">
-              Delete saved app-time history? Your "usual" will start again from
-              zero.
+              Delete app-time history? Your "usual" restarts.
             </Txt>
             <Button
               label="Yes, delete history"

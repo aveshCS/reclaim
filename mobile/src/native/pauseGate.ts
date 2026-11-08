@@ -1,5 +1,6 @@
 import { NativeModules, Platform } from 'react-native';
 import type { TrackedApp } from '../state/settings';
+import type { Intensity } from '../state/intensity';
 
 export type PauseDayStats = {
   date: string;
@@ -27,6 +28,12 @@ type NativeGate = {
     showPip: boolean,
   ): Promise<boolean>;
   getReelStats(dates: string[]): Promise<ReelDayStats[]>;
+  configureIntensity(
+    base: number,
+    pendingLevel: number,
+    pendingAt: number,
+    strictUntil: number,
+  ): Promise<boolean>;
 };
 
 export type ReelDayStats = {
@@ -124,6 +131,18 @@ export const pauseGate = {
         reelsEnabled,
         reelLimit,
         showPip,
+      );
+    } catch {
+      // Retried on the next change.
+    }
+  },
+  async configureIntensity(i: Intensity): Promise<void> {
+    try {
+      await native()?.configureIntensity(
+        i.base,
+        i.pending?.level ?? 0,
+        i.pending?.at ?? 0,
+        i.strictUntil ?? 0,
       );
     } catch {
       // Retried on the next change.

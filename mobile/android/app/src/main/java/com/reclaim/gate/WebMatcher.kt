@@ -50,6 +50,36 @@ object WebMatcher {
     return if (HOST.matches(t)) t else null
   }
 
+  /** A short video open in the browser: which site, and which video (only compared, never stored). */
+  data class ShortVideo(val site: String, val id: String)
+
+  /**
+   * Is this address a single short video page? YouTube /shorts/ID, Instagram /reel(s)/ID,
+   * Facebook /reel/ID, TikTok /@user/video/ID. Each new ID while scrolling = one new reel.
+   */
+  fun shortVideo(text: String?): ShortVideo? {
+    val host = hostOf(text) ?: return null
+    var t = text!!.trim()
+    t = t.removePrefix("https://").removePrefix("http://").removePrefix("HTTPS://").removePrefix("HTTP://")
+    val slash = t.indexOf('/')
+    if (slash < 0) return null
+    val path = t.substring(slash + 1).substringBefore('?').substringBefore('#')
+    val segs = path.split('/').filter { it.isNotEmpty() }
+    fun on(site: String) = host == site || host.endsWith(".$site")
+    return when {
+      on("youtube.com") && segs.size >= 2 && segs[0].equals("shorts", true) ->
+          ShortVideo("youtube.com", segs[1])
+      on("instagram.com") && segs.size >= 2 &&
+          (segs[0].equals("reel", true) || segs[0].equals("reels", true)) ->
+          ShortVideo("instagram.com", segs[1])
+      on("facebook.com") && segs.size >= 2 && segs[0].equals("reel", true) ->
+          ShortVideo("facebook.com", segs[1])
+      on("tiktok.com") && segs.size >= 3 && segs[1].equals("video", true) ->
+          ShortVideo("tiktok.com", segs[2])
+      else -> null
+    }
+  }
+
   /** The user's site that [host] belongs to ("old.reddit.com" -> "reddit.com"), or null. */
   fun match(host: String?, sites: Set<String>): String? {
     if (host == null) return null

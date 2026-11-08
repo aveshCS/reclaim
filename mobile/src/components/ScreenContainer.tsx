@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../theme/tokens';
+import { Stagger } from './Motion';
 
 /** Paper background + scrollable, safe-area-aware page. Taps outside inputs still work while the keyboard is open. */
 export function ScreenContainer({ children }: { children: React.ReactNode }) {
@@ -16,7 +17,7 @@ export function ScreenContainer({ children }: { children: React.ReactNode }) {
           { paddingTop: insets.top + spacing.lg },
         ]}
       >
-        {children}
+        <Stagger>{children}</Stagger>
       </ScrollView>
       {/* Paper strip behind the status bar so scrolled content doesn't run under it. */}
       <View style={[styles.statusBar, { height: insets.top }]} />

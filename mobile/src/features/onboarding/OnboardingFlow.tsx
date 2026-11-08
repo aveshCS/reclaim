@@ -29,11 +29,28 @@ import {
 import { colors, fonts, MIN_TOUCH_TARGET, radius } from '../../theme/tokens';
 import { FocusDurationPicker } from '../settings/FocusDurationPicker';
 import { projectScreenTime } from './lifeMath';
+import { pauseGate } from '../../native/pauseGate';
+import { LEVELS, suggestedLevel } from '../../state/intensity';
+import {
+  APP_PAUSE_AGREE,
+  AppPauseDisclosureBody,
+  usePauseService,
+} from '../pause/PauseSetup';
+import {
+  featureAgreeLabel,
+  FeatureDisclosureBody,
+  SUGGESTED_SITES,
+} from '../pause/WebAndReels';
+import { IntensityPicker } from '../pause/IntensityPicker';
+import { AppPicker } from '../usage/AppPicker';
+import { REEL_LIMITS } from '../../state/settings';
 
 type StepView = {
   chat: string[];
   mood?: PipMood;
   body: React.ReactNode;
+  /** Restarts Pip's chat when the same step changes what it says. */
+  chatKey?: string;
 };
 
 export function OnboardingFlow() {
@@ -68,6 +85,32 @@ export function OnboardingFlow() {
 
   const next = s.nextStep;
   const nameSuffix = name ? `, ${name}` : '';
+
+  // "Win back your time" steps: one tick box per feature (its own consent), reset per step.
+  const [ticked, setTicked] = useState<OnboardingStep | null>(null);
+  const tick = ticked === step;
+  const toggleTick = () => setTicked(t => (t === step ? null : step));
+  const [picker, setPicker] = useState(false);
+  const { on: serviceOn, check: checkService } = usePauseService();
+  const { gate, reels, web } = settings;
+
+  const protectSummary = () => {
+    const parts: string[] = [];
+    if (gate.enabled && gate.packages.length) {
+      parts.push(`${gate.packages.length} ${gate.packages.length === 1 ? 'app' : 'apps'}`);
+    }
+    if (reels.enabled) {
+      parts.push('reels counter');
+    }
+    if (web.enabled && web.sites.length) {
+      parts.push(`${web.sites.length} ${web.sites.length === 1 ? 'site' : 'sites'}`);
+    }
+    if (!parts.length) {
+      return 'set up later in Insights';
+    }
+    const lvl = LEVELS.find(l => l.level === settings.intensity.base)?.name ?? 'Gentle';
+    return `${lvl} · ${parts.join(', ')}${serviceOn ? '' : ' (switch on in Insights)'}`;
+  };
 
   const view = ((): StepView => {
     switch (step) {
@@ -197,39 +240,23 @@ export function OnboardingFlow() {
           body: (
             <>
               <Card tone="sky">
-                <Txt variant="heading">Your brain learns from your feed</Txt>
-                <Txt>
-                  Feeds serve something new every few seconds. Your brain adapts
-                  to that pace, so slower things, like a chapter, a lecture or a
-                  long conversation, start to feel harder.
-                </Txt>
+                <Txt variant="heading">🧠 Your brain learns from your feed</Txt>
+                <Txt>Fast feeds make slow things, like a chapter, feel hard.</Txt>
               </Card>
               <Card>
-                <Txt variant="label">What research says</Txt>
-                <Txt>
-                  • A 2025 review of 71 studies (about 98,000 people) linked
-                  heavy short-video use with weaker attention and self-control.
-                </Txt>
-                <Txt>
-                  • In small experiments, rapid clip-switching made people worse
-                  at remembering things they had planned to do.
+                <Txt variant="bodyBold">
+                  📚 71 studies, 98,000 people: heavy short video goes with
+                  weaker attention.
                 </Txt>
                 {picked.includes('forgetting') ? (
-                  <Txt>
-                    • Forgetting a name you just heard is often an attention
-                    slip: it never fully landed in the first place.
+                  <Txt variant="bodyBold">
+                    💭 Forgot a name? Often it never fully landed.
                   </Txt>
                 ) : null}
-                <Txt variant="caption">
-                  These are links, not proof of lasting harm.
-                </Txt>
+                <Txt variant="caption">A link, not proof of lasting harm.</Txt>
               </Card>
               <Card tone="leaf">
-                <Txt variant="heading">The good news</Txt>
-                <Txt>
-                  Attention is a skill. With practice it comes back. That's what
-                  we'll work on together.
-                </Txt>
+                <Txt variant="heading">🌱 Attention is a skill. It comes back.</Txt>
               </Card>
               <Txt variant="caption" center>
                 RECLAIM is a practice tool, not a medical treatment.
@@ -345,9 +372,7 @@ export function OnboardingFlow() {
                       style={styles.hugeNumber}
                     />
                     <Txt center color={colors.ink}>
-                      of the next {p.yearsAhead} years would be spent looking at
-                      your phone. That's {Math.round(p.daysPerYear)} full days,
-                      every year.
+                      of your next {p.yearsAhead} on your phone.
                     </Txt>
                   </>
                 ) : (
@@ -358,23 +383,19 @@ export function OnboardingFlow() {
                       style={styles.hugeNumber}
                     />
                     <Txt center color={colors.ink}>
-                      every year spent looking at your phone. Around{' '}
-                      {Math.round(p.wakingShare * 100)}% of your waking hours.
+                      a year on your phone. {Math.round(p.wakingShare * 100)}%
+                      of your waking hours.
                     </Txt>
                   </>
                 )}
                 <Txt variant="caption" center>
-                  Simple maths on your own estimate, not a prediction.
+                  Your estimate × time. Not a prediction.
                 </Txt>
               </Card>
               <Card tone="leaf">
-                <Txt variant="label" color={colors.leaf}>
-                  The good part
-                </Txt>
                 <Txt variant="heading">
-                  Get back just 1 hour a day and you gain{' '}
-                  {Math.round(p.oneHourBackDaysPerYear)} days a year for what
-                  matters to you.
+                  🌱 1 hour back a day = {Math.round(p.oneHourBackDaysPerYear)}{' '}
+                  days a year for you.
                 </Txt>
               </Card>
               <Button label="I want that time back" onPress={next} />
@@ -382,6 +403,245 @@ export function OnboardingFlow() {
           ),
         };
       }
+
+      case 'protect':
+        return {
+          chat: [
+            `First, let's win back some of that time${nameSuffix}.`,
+            'Before any training, I can put a gentle pause in front of your feeds. You stay in control, always.',
+          ],
+          body: (
+            <>
+              <Card>
+                <Txt variant="bodyBold">🫧 A breath before the apps that pull you in</Txt>
+                <Txt variant="bodyBold">🎞 Count your Shorts and Reels, with me on top</Txt>
+                <Txt variant="bodyBold">🌐 The same pause for feed websites</Txt>
+                <Txt variant="caption">
+                  One small step each, and you can skip any of them.
+                </Txt>
+              </Card>
+              <AnswerHint kind="one" />
+              <Button
+                label="Yes, let's win it back"
+                onPress={() => {
+                  s.setProtectChoice('yes');
+                  next();
+                }}
+              />
+              <Button
+                label="Set up later"
+                variant="ghost"
+                onPress={() => {
+                  s.setProtectChoice('later');
+                  next();
+                }}
+              />
+              <Txt variant="caption" center>
+                All of this lives in Insights too, whenever you want it.
+              </Txt>
+            </>
+          ),
+        };
+
+      case 'protectApps':
+        return {
+          chat: [
+            'Which apps pull you in the most?',
+            "When you open one, I'll show a 5-second breath first. You can always open it anyway.",
+          ],
+          body: (
+            <>
+              <AnswerHint kind="many" />
+              <Txt variant="bodyBold">
+                {gate.packages.length
+                  ? `Chosen: ${gate.packages.map(a => a.label).join(', ')}`
+                  : 'No apps chosen yet'}
+              </Txt>
+              <Button
+                label={gate.packages.length ? 'Edit apps' : 'Choose apps'}
+                variant="secondary"
+                onPress={() => setPicker(true)}
+              />
+              <AppPauseDisclosureBody />
+              <Chip
+                block
+                label={APP_PAUSE_AGREE}
+                selected={tick || gate.enabled}
+                onPress={toggleTick}
+              />
+              <Button
+                label="Continue"
+                disabled={!(tick || gate.enabled) || gate.packages.length === 0}
+                onPress={() => {
+                  s.setGate(true);
+                  next();
+                }}
+              />
+              <Button label="Skip this" variant="ghost" onPress={next} />
+              <AppPicker
+                visible={picker}
+                initial={gate.packages}
+                title="Which apps pull you in?"
+                onCancel={() => setPicker(false)}
+                onSave={apps => {
+                  s.setGateApps(apps);
+                  setPicker(false);
+                }}
+              />
+            </>
+          ),
+        };
+
+      case 'protectReels':
+        return {
+          chat: [
+            'Want me to count your Shorts and Reels?',
+            "I'll sit on top of them with the number, and my face changes as it climbs. No judgement.",
+          ],
+          body: (
+            <>
+              <FeatureDisclosureBody kind="reels" />
+              <Txt variant="bodyBold">Daily limit (choose one)</Txt>
+              <AnswerHint kind="one" />
+              <View style={styles.wrapRow}>
+                {REEL_LIMITS.map(l => (
+                  <Chip
+                    key={l}
+                    role="radio"
+                    label={l === 0 ? 'Just count' : `${l} reels`}
+                    selected={reels.limit === l}
+                    onPress={() => s.setReelLimit(l)}
+                  />
+                ))}
+              </View>
+              <Chip
+                block
+                label={featureAgreeLabel('reels')}
+                selected={tick || reels.enabled}
+                onPress={toggleTick}
+              />
+              <Button
+                label="Continue"
+                disabled={!(tick || reels.enabled)}
+                onPress={() => {
+                  s.setReels(true);
+                  next();
+                }}
+              />
+              <Button label="Skip this" variant="ghost" onPress={next} />
+            </>
+          ),
+        };
+
+      case 'protectWeb':
+        return {
+          chat: [
+            'Feeds live in the browser too.',
+            "Pick sites and I'll pause before those as well.",
+          ],
+          body: (
+            <>
+              <AnswerHint kind="many" />
+              <View style={styles.wrapRow}>
+                {SUGGESTED_SITES.map(site => (
+                  <Chip
+                    key={site}
+                    role="checkbox"
+                    label={site}
+                    selected={web.sites.includes(site)}
+                    onPress={() =>
+                      s.setSites(
+                        web.sites.includes(site)
+                          ? web.sites.filter(x => x !== site)
+                          : [...web.sites, site],
+                      )
+                    }
+                  />
+                ))}
+              </View>
+              <Txt variant="caption">Add other sites later in Insights.</Txt>
+              <FeatureDisclosureBody kind="web" />
+              <Chip
+                block
+                label={featureAgreeLabel('web')}
+                selected={tick || web.enabled}
+                onPress={toggleTick}
+              />
+              <Button
+                label="Continue"
+                disabled={!(tick || web.enabled) || web.sites.length === 0}
+                onPress={() => {
+                  s.setWeb(true);
+                  next();
+                }}
+              />
+              <Button label="Skip this" variant="ghost" onPress={next} />
+            </>
+          ),
+        };
+
+      case 'protectLevel': {
+        const suggested = suggestedLevel(profile);
+        return {
+          chat:
+            suggested === 3
+              ? [
+                  'With an exam ahead and a lot of phone time, a firmer setting may help.',
+                  'How firm should I be? You can change it any time.',
+                ]
+              : [
+                  'How firm should I be?',
+                  'Most people start Gentle. You can go stricter any time.',
+                ],
+          body: (
+            <>
+              <IntensityPicker suggested={suggested} />
+              <Button label="Continue" onPress={next} />
+            </>
+          ),
+        };
+      }
+
+      case 'protectEnable':
+        return serviceOn
+          ? {
+              chat: [
+                "You're protected! 🎉",
+                "Next time a feed calls, I'll be there first.",
+              ],
+              mood: 'cheer',
+              chatKey: 'on',
+              body: <Button label="Continue" onPress={next} />,
+            }
+          : {
+              chat: [
+                'Last step: switch me on.',
+                'Android asks for this once. It powers everything you just chose.',
+              ],
+              chatKey: 'off',
+              body: (
+                <>
+                  <Card>
+                    <Txt>1. Tap the button below.</Txt>
+                    <Txt>
+                      2. Find "RECLAIM mindful pause". On Xiaomi, Redmi and POCO
+                      phones it is under "Downloaded apps".
+                    </Txt>
+                    <Txt>3. Switch it on, then come back here.</Txt>
+                  </Card>
+                  <Button
+                    label="Open Accessibility settings"
+                    onPress={() =>
+                      pauseGate
+                        .openSettings()
+                        .then(checkService)
+                        .catch(() => {})
+                    }
+                  />
+                  <Button label="I'll do it later" variant="ghost" onPress={next} />
+                </>
+              ),
+            };
 
       case 'priorities':
         return {
@@ -544,6 +804,10 @@ export function OnboardingFlow() {
                     : 'whatever matters to you'}
                 </Txt>
                 <Txt>
+                  Protection:{' '}
+                  {protectSummary()}
+                </Txt>
+                <Txt>
                   App time insights:{' '}
                   {settings.monitoring.choice === 'requested'
                     ? 'finish setup in Insights, nothing read yet'
@@ -590,7 +854,7 @@ export function OnboardingFlow() {
           </View>
         ) : null}
         <GuideChat
-          key={step}
+          key={`${step}-${view.chatKey ?? ''}`}
           messages={view.chat}
           mood={view.mood ?? 'happy'}
           pipSize={showBigPip ? 0 : 92}

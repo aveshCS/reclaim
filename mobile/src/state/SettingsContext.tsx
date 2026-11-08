@@ -13,6 +13,7 @@ import {
   AppSettings,
   DEFAULT_SETTINGS,
   ExamId,
+  platformCaps,
   PriorityId,
   RoleId,
   settingsReducer,
@@ -20,6 +21,7 @@ import {
   TrackedApp,
   IfThenPlan,
 } from './settings';
+import { pauseGate } from '../native/pauseGate';
 
 type SettingsApi = {
   /** False until persisted settings have been read. */
@@ -51,6 +53,11 @@ type SettingsApi = {
   setReels: (enabled: boolean) => void;
   setReelLimit: (limit: number) => void;
   setReelPip: (show: boolean) => void;
+  setProtectChoice: (choice: 'yes' | 'later') => void;
+  requestLevel: (level: 1 | 2 | 3) => void;
+  startStrict: (until: number) => void;
+  endStrictEarly: () => void;
+  cancelPendingLevel: () => void;
   setPlan: (p: IfThenPlan | null) => void;
   startReset: (startDate: string, limitMin: number) => void;
   setResetScore: (which: 'baseline' | 'final', score: number) => void;
@@ -63,6 +70,8 @@ type SettingsApi = {
 const SettingsContext = createContext<SettingsApi | null>(null);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
+  // The "win back your time" onboarding steps need the Android pause service.
+  platformCaps.protect = pauseGate.isAvailable();
   const [settings, dispatch] = useReducer(settingsReducer, DEFAULT_SETTINGS);
   const [ready, setReady] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -140,6 +149,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'setReels', enabled, at: new Date().toISOString() }),
       setReelLimit: limit => dispatch({ type: 'setReelLimit', limit }),
       setReelPip: show => dispatch({ type: 'setReelPip', show }),
+      setProtectChoice: choice => dispatch({ type: 'setProtectChoice', choice }),
+      requestLevel: level =>
+        dispatch({ type: 'requestLevel', level, now: Date.now() }),
+      startStrict: until =>
+        dispatch({ type: 'startStrict', until, now: Date.now() }),
+      endStrictEarly: () => dispatch({ type: 'endStrictEarly', now: Date.now() }),
+      cancelPendingLevel: () => dispatch({ type: 'cancelPendingLevel' }),
       setPlan: plan => dispatch({ type: 'setPlan', plan }),
       startReset: (startDate, limitMin) =>
         dispatch({ type: 'startReset', startDate, limitMin }),

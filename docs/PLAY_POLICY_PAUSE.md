@@ -28,7 +28,7 @@ each release.
 | Affirmative consent | "I understand and agree…" tick box; "Agree and open settings" stays disabled until ticked. Decline leaves everything off. Consent is recorded append-only (`accessibility_pause`) |
 | User control | "Open anyway" always works; "Not now" is one tap; "Turn the pause off" in app; switch off in Android Settings any time |
 | Data | Chosen package names, labels, chosen sites, daily counters and daily reel counts per app, only on device. Visited addresses and video details are never stored. Nothing is sent anywhere |
-| Not a blocker | Nothing is blocked. The pause is a 5-second breath with a choice |
+| User-chosen intensity | Gentle (default): 5-second breath with a choice. Firm: 15-second breath, a reason, 2 minutes, a daily open budget. Strict (only if the user picks it, always time-limited): the chosen apps/sites/Shorts show RECLAIM's own "paused for now" screen with "Go back" (Home, or Back inside the app for Shorts) and an always-available emergency unlock after a 60-second wait. All deterministic rules the user configured; RECLAIM never acts inside other apps |
 
 ## Still to do before submitting to Play
 1. Complete the **Accessibility API declaration** in Play Console (purpose: App functionality;
