@@ -1,3 +1,5 @@
-<resources>
+﻿<resources>
     <color name="reclaim_background">#FBF4EA</color>
+    <!-- App icon: Pip on warm orange. -->
+    <color name="ic_launcher_background">#F26A3D</color>
 </resources>

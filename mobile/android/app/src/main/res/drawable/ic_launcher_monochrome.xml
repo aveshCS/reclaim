@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated: RECLAIM icon, Pip on orange. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+  <group android:translateX="23" android:translateY="20.05"
+      android:scaleX="0.31" android:scaleY="0.31">
+    <path android:pathData="M100,31 C86,15,68,23,64,37 C80,43,94,39,100,31 Z" android:fillColor="#000000" />
+    <path android:pathData="M100,31 C114,15,132,23,136,37 C120,43,106,39,100,31 Z" android:fillColor="#000000" />
+    <path android:pathData="M100,66 Q95,48.5,100,31" android:strokeColor="#000000"
+        android:strokeWidth="5" android:strokeLineCap="round" />
+    <path android:pathData="M100,62 C150,62,178,98,178,140 C178,182,146,204,100,204 C54,204,22,182,22,140 C22,98,50,62,100,62 Z M68.5,128 A7.5,10 0 1,0 83.5,128 A7.5,10 0 1,0 68.5,128 Z M116.5,128 A7.5,10 0 1,0 131.5,128 A7.5,10 0 1,0 116.5,128 Z" android:fillColor="#000000"
+        android:fillType="evenOdd" />
+  </group>
+</vector>
