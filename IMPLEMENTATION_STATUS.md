@@ -12,7 +12,7 @@ Last updated: 2026-11-09
 - [x] Phase 6 — Attention Gym (wider scope; 32 exercises self-checked, independent expert review still required before release)
 - [x] Phase 6b — Reset, mindful pause, new practice (pause fixed on a real Xiaomi phone 2026-11-08)
 - [ ] Phase 6c — Website pause + reels counter (code and tests done; real-device check pending, see below)
-- [ ] Phase 7 — Backend + DB (server built and tested locally; accounts, deploy and the mobile side pending)
+- [x] Phase 7 — Backend + DB (lean scope: Google sign-in, backup/restore; deployed on Render + Neon; sign-in confirmed on a real phone 2026-11-10)
 - [ ] Phase 8 — Rules-based coach
 - [ ] Phase 9 — AI coach
 - [ ] Phase 10 — Insights / weekly review
@@ -314,4 +314,4 @@ Lean scope agreed with the developer: Google sign-in plus backup and restore, Ne
 ## Server deployed (2026-11-10)
 - Render free web service (Singapore), branch `phase-6b-reset-and-pause`, root `backend`; database on Neon (PostgreSQL 17). Secrets only in Render's dashboard.
 - Checked from this PC: `GET /v1/health` 200 with database ok (migrations applied on start); `/v1/docs` 404 (off in production); fake Google token 401 (Google configured); `/v1/me` without sign-in 401; HSTS and nosniff headers present.
-- Release builds now point at `https://reclaim-tf5x.onrender.com/v1`. Release APK installed on the POCO as an update (same key, data kept). Sign-in on the POCO not yet confirmed.
+- Release builds now point at `https://reclaim-tf5x.onrender.com/v1`. Release APK installed on the POCO as an update (same key, data kept). Developer confirmed Google sign-in works on the POCO against the deployed server (2026-11-10).
