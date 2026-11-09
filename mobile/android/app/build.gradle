@@ -92,15 +92,30 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // The upload key lives outside the repo; its path and password come from
+        // ~/.gradle/gradle.properties (RECLAIM_UPLOAD_*). See docs/RELEASE_SIGNING.md.
+        if (project.hasProperty('RECLAIM_UPLOAD_STORE_FILE')) {
+            release {
+                storeFile file(RECLAIM_UPLOAD_STORE_FILE)
+                storePassword RECLAIM_UPLOAD_STORE_PASSWORD
+                keyAlias RECLAIM_UPLOAD_KEY_ALIAS
+                keyPassword RECLAIM_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Without the upload key (e.g. another machine), fall back to the debug key so
+            // local release builds still install. Play rejects debug-signed uploads.
+            if (project.hasProperty('RECLAIM_UPLOAD_STORE_FILE')) {
+                signingConfig signingConfigs.release
+            } else {
+                logger.warn('RECLAIM: upload key not configured; release build signed with the DEBUG key.')
+                signingConfig signingConfigs.debug
+            }
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }

@@ -285,3 +285,9 @@ Lean scope agreed with the developer: Google sign-in plus backup and restore, Ne
 - `render.yaml` blueprint added (not deployed). Typecheck clean. No backend lint configured.
 - Note: Jest needs `--experimental-vm-modules` because NestJS 12 ships ES modules only; the `npm test` script passes it.
 - Not done: release keystore, Google OAuth clients, Neon project, Render deploy (developer accounts needed); mobile sign-in and sync.
+
+## Release signing (2026-11-09)
+- Upload key created outside the repo (`~/.reclaim-keys/reclaim-upload.jks`, RSA 4096, valid to 2054); password generated randomly and stored only in that folder and `~/.gradle/gradle.properties`. Release builds use it; without it they fall back to the debug key with a warning. Details and fingerprints: docs/RELEASE_SIGNING.md.
+- Verified: `assembleRelease` built, and `apksigner verify` shows the upload certificate (SHA-1 58:C1:2C:…:81:59).
+- Developer must back up the key folder off this computer.
+- `com.reclaim` has no public Play listing (checked 2026-11-09); that does not prove the id is free. Play Console confirms it when the app is created.
