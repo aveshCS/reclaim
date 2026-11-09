@@ -5,6 +5,8 @@ import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.module.model.ReactModuleInfo
 import com.facebook.react.module.model.ReactModuleInfoProvider
+import com.reclaim.auth.GoogleSignInModule
+import com.reclaim.auth.SecureStoreModule
 import com.reclaim.gate.PauseGateModule
 import com.reclaim.sound.SoundModule
 
@@ -15,6 +17,8 @@ class ReclaimPackage : BaseReactPackage() {
         UsageStatsModule.NAME -> UsageStatsModule(reactContext)
         PauseGateModule.NAME -> PauseGateModule(reactContext)
         SoundModule.NAME -> SoundModule(reactContext)
+        GoogleSignInModule.NAME -> GoogleSignInModule(reactContext)
+        SecureStoreModule.NAME -> SecureStoreModule(reactContext)
         else -> null
       }
 
@@ -42,6 +46,24 @@ class ReclaimPackage : BaseReactPackage() {
             ReactModuleInfo(
                 name = SoundModule.NAME,
                 className = SoundModule::class.java.name,
+                canOverrideExistingModule = false,
+                needsEagerInit = false,
+                isCxxModule = false,
+                isTurboModule = false,
+            ),
+        GoogleSignInModule.NAME to
+            ReactModuleInfo(
+                name = GoogleSignInModule.NAME,
+                className = GoogleSignInModule::class.java.name,
+                canOverrideExistingModule = false,
+                needsEagerInit = false,
+                isCxxModule = false,
+                isTurboModule = false,
+            ),
+        SecureStoreModule.NAME to
+            ReactModuleInfo(
+                name = SecureStoreModule.NAME,
+                className = SecureStoreModule::class.java.name,
                 canOverrideExistingModule = false,
                 needsEagerInit = false,
                 isCxxModule = false,

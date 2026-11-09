@@ -62,6 +62,7 @@ type SettingsApi = {
   setLevelNow: (level: 1 | 2 | 3) => void;
   clearStrictNow: () => void;
   setSoundEffects: (on: boolean) => void;
+  setBackupConsent: (granted: boolean) => void;
   setPlan: (p: IfThenPlan | null) => void;
   startReset: (startDate: string, limitMin: number) => void;
   setResetScore: (which: 'baseline' | 'final', score: number) => void;
@@ -165,6 +166,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setLevelNow: level => dispatch({ type: 'setLevelNow', level }),
       clearStrictNow: () => dispatch({ type: 'clearStrictNow' }),
       setSoundEffects: on => dispatch({ type: 'setSoundEffects', on }),
+      setBackupConsent: granted =>
+        dispatch({ type: 'setBackupConsent', granted, at: new Date().toISOString() }),
       setPlan: plan => dispatch({ type: 'setPlan', plan }),
       startReset: (startDate, limitMin) =>
         dispatch({ type: 'startReset', startDate, limitMin }),

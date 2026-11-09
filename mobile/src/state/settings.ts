@@ -128,6 +128,8 @@ export const MAX_TRACKED_APPS = 30;
 
 /** Recorded when the user agrees to (or withdraws) the separate Accessibility disclosure for the mindful pause. */
 export const CONSENT_PURPOSE_PAUSE = 'accessibility_pause';
+/** Optional Google sign-in that backs up settings, focus sessions and gym progress. */
+export const CONSENT_PURPOSE_BACKUP = 'cloud_backup';
 
 export type PauseGate = {
   /** User wants pauses (the Android service must also be switched on in Settings). */
@@ -278,6 +280,7 @@ export type SettingsAction =
   | { type: 'setLevelNow'; level: 1 | 2 | 3 }
   | { type: 'clearStrictNow' }
   | { type: 'setSoundEffects'; on: boolean }
+  | { type: 'setBackupConsent'; granted: boolean; at: string }
   | { type: 'setPlan'; plan: IfThenPlan | null }
   | { type: 'startReset'; startDate: string; limitMin: number }
   | { type: 'setResetScore'; which: 'baseline' | 'final'; score: number }
@@ -705,6 +708,20 @@ export function settingsReducer(
 
     case 'setSoundEffects':
       return { ...state, sound: { ...state.sound, effects: action.on } };
+
+    case 'setBackupConsent':
+      return {
+        ...state,
+        consents: [
+          ...state.consents,
+          {
+            purpose: CONSENT_PURPOSE_BACKUP,
+            policyVersion: CONSENT_POLICY_VERSION,
+            granted: action.granted,
+            recordedAt: action.at,
+          },
+        ],
+      };
 
     case 'clearStrictNow':
       return { ...state, intensity: { ...state.intensity, strictUntil: null } };

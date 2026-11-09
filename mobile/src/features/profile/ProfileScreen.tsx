@@ -21,6 +21,7 @@ import { colors, fonts, MIN_TOUCH_TARGET, radius } from '../../theme/tokens';
 import { FocusDurationPicker } from '../settings/FocusDurationPicker';
 import { PlanEditor } from '../reset/PlanEditor';
 import { RETENTION_DAYS, usageRepository } from '../usage/usageRepository';
+import { BackupCard } from './BackupCard';
 
 export function ProfileScreen() {
   const s = useSettings();
@@ -57,7 +58,7 @@ export function ProfileScreen() {
             {profile.name.trim() ? profile.name.trim() : 'Hello there'}
           </Txt>
           <Txt variant="caption" color={colors.inkSoft}>
-            Everything here stays on this phone.
+            Your data lives on this phone. Backup is optional.
           </Txt>
         </View>
       </Card>
@@ -202,9 +203,11 @@ export function ProfileScreen() {
         <Txt variant="caption">A soft pop when you tap Pip. Silent when your phone is.</Txt>
       </Card>
 
+      <BackupCard />
+
       <Card tone="sand" flat>
         <Txt variant="heading">Privacy controls</Txt>
-        <Txt>📱 Everything stays on this phone.</Txt>
+        <Txt>📱 App time and pause data stay on this phone.</Txt>
         {historyDeleted ? (
           <Txt variant="bodyBold">App-time history deleted.</Txt>
         ) : confirmDelete ? (

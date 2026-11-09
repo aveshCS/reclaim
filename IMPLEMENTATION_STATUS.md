@@ -291,3 +291,13 @@ Lean scope agreed with the developer: Google sign-in plus backup and restore, Ne
 - Verified: `assembleRelease` built, and `apksigner verify` shows the upload certificate (SHA-1 58:C1:2C:…:81:59).
 - Developer must back up the key folder off this computer.
 - `com.reclaim` has no public Play listing (checked 2026-11-09); that does not prove the id is free. Play Console confirms it when the app is created.
+
+## Google sign-in in the app (2026-11-10, uncommitted)
+- Google Cloud project RECLAIM: Web client (server audience) plus Android clients for debug and release keys, created by the developer. The template React Native debug key was already registered for `com.reclaim` by someone else, so RECLAIM now has its own debug key (`~/.reclaim-keys/reclaim-debug.keystore`, see docs/RELEASE_SIGNING.md).
+- Native: `GoogleSignInModule` (Android Credential Manager, "Sign in with Google" button flow, returns only the ID token and email) and `SecureStoreModule` (AES-256-GCM, key in Android Keystore) for the refresh token.
+- App: `src/cloud/account.ts` (sign-in, single-flight token refresh, sign out with server revoke, delete backup), Profile "Backup (optional)" card, `cloud_backup` consent record on sign-in/out/delete. Release builds show "coming soon" until the server is deployed (`src/config/cloud.ts`).
+- Verified on the emulator against the local server: real Google account sign-in succeeded; server created one user and one hashed refresh token; still signed in after force-stop and relaunch; cancelling the sheet returns quietly.
+- Not yet verified: sign out and delete on a device (unit/component tests only); release-key sign-in on a phone (needs the deployed server).
+- Not built yet: uploading data (sync queue) and restore.
+- Tests: Jest 206/206, typecheck and lint clean.
+- Emulator note: on this PC the emulator could not resolve names; start it with `-dns-server 8.8.8.8,1.1.1.1`. `hw.keyboard` set to yes in the AVD so the PC keyboard types.
