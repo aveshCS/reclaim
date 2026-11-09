@@ -310,3 +310,8 @@ Lean scope agreed with the developer: Google sign-in plus backup and restore, Ne
 - Verified on the emulator against the local server with a real Google account: preferences uploaded with only the allowed keys; a 1-minute focus session uploaded; app data wiped (`pm clear`) then sign-in restored name, role, exam and the session ("Restored 1 item"); "Delete my backup" removed every server row (all 7 tables 0) while the phone kept its data.
 - Not verified on a device: two phones editing at once (tests only); gym data restore (tests only); behaviour with the deployed server.
 - Tests: Jest 216/216, typecheck and lint clean.
+
+## Server deployed (2026-11-10)
+- Render free web service (Singapore), branch `phase-6b-reset-and-pause`, root `backend`; database on Neon (PostgreSQL 17). Secrets only in Render's dashboard.
+- Checked from this PC: `GET /v1/health` 200 with database ok (migrations applied on start); `/v1/docs` 404 (off in production); fake Google token 401 (Google configured); `/v1/me` without sign-in 401; HSTS and nosniff headers present.
+- Release builds now point at `https://reclaim-tf5x.onrender.com/v1`. Release APK installed on the POCO as an update (same key, data kept). Sign-in on the POCO not yet confirmed.
