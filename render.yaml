@@ -1,0 +1,25 @@
+# Render Blueprint for the RECLAIM API (free web service). The database is Neon, not Render.
+# Secrets are marked sync: false, so Render asks for them in its dashboard; none live in git.
+services:
+  - type: web
+    name: reclaim-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    # Dev dependencies are needed to compile and to run migrations (prisma CLI).
+    buildCommand: npm ci --include=dev && npm run build
+    # Free plan has no pre-deploy step, so migrations run on start. They are idempotent.
+    startCommand: npm run db:migrate && npm start
+    healthCheckPath: /v1/health
+    autoDeploy: false
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GOOGLE_CLIENT_IDS
+        sync: false

@@ -25,3 +25,6 @@ Thumbs.db
 coverage/
 # nested leftover
 reclaim-starter/
+# backend: local database files and generated Prisma client
+backend/.pgdata/
+backend/src/generated/

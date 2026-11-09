@@ -1,0 +1,126 @@
+// RECLAIM backup schema. The app is local-first: the server only keeps what the user backs
+// up. Never stored here: app-usage history, reel counts, website lists, anything the
+// Accessibility service sees. Every user-owned row cascades on account deletion.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  /// Google's stable account id ("sub"). Email may change; this doesn't.
+  googleSub String   @unique @map("google_sub")
+  email     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  refreshTokens RefreshToken[]
+  settings      UserSettings?
+  consents      Consent[]
+  focusSessions FocusSession[]
+  gymAttempts   GymAttempt[]
+  gymWorkouts   GymWorkout[]
+
+  @@map("users")
+}
+
+/// Refresh tokens are stored only as SHA-256 hashes and rotate on every use.
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+/// The app's settings document (profile, priorities, intensity, plan, Reset, ...), as JSON.
+/// `version` gives optimistic concurrency: a stale write is refused, never silently lost.
+model UserSettings {
+  userId    String   @id @map("user_id") @db.Uuid
+  data      Json
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+/// Append-only consent history, mirrored from the app (idempotent by the app's own id).
+model Consent {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  clientId      String   @map("client_id")
+  purpose       String
+  policyVersion String   @map("policy_version")
+  granted       Boolean
+  recordedAt    DateTime @map("recorded_at") @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@map("consents")
+}
+
+model FocusSession {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  clientId   String   @map("client_id")
+  intention  String   @default("")
+  plannedMs  Int      @map("planned_ms")
+  actualMs   Int      @map("actual_ms")
+  startedAt  DateTime @map("started_at") @db.Timestamptz(3)
+  endedAt    DateTime @map("ended_at") @db.Timestamptz(3)
+  status     String
+  pauses     Int      @default(0)
+  reflection Json?
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@index([userId, startedAt])
+  @@map("focus_sessions")
+}
+
+model GymAttempt {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  clientId   String   @map("client_id")
+  drill      String
+  /// The user's local calendar day (YYYY-MM-DD), decided on the phone in the user's timezone.
+  date       String
+  at         DateTime @db.Timestamptz(3)
+  score      Float
+  correct    Int
+  total      Int
+  durationMs Int      @map("duration_ms")
+  detail     Json
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@index([userId, at])
+  @@map("gym_attempts")
+}
+
+/// One row per local day: the workout plan, what was done, and when it was finished
+/// (Pip's garden grows from these).
+model GymWorkout {
+  userId      String    @map("user_id") @db.Uuid
+  date        String
+  plan        String[]
+  done        String[]
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(3)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, date])
+  @@map("gym_workouts")
+}

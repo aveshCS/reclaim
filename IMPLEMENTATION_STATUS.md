@@ -1,6 +1,6 @@
 # RECLAIM — Implementation Status
 
-Last updated: 2026-11-08
+Last updated: 2026-11-09
 
 ## Phase checklist
 - [x] Phase 0 — Audit & environment readiness
@@ -12,7 +12,7 @@ Last updated: 2026-11-08
 - [x] Phase 6 — Attention Gym (wider scope; 32 exercises self-checked, independent expert review still required before release)
 - [x] Phase 6b — Reset, mindful pause, new practice (pause fixed on a real Xiaomi phone 2026-11-08)
 - [ ] Phase 6c — Website pause + reels counter (code and tests done; real-device check pending, see below)
-- [ ] Phase 7 — Backend + DB
+- [ ] Phase 7 — Backend + DB (server built and tested locally; accounts, deploy and the mobile side pending)
 - [ ] Phase 8 — Rules-based coach
 - [ ] Phase 9 — AI coach
 - [ ] Phase 10 — Insights / weekly review
@@ -21,7 +21,7 @@ Last updated: 2026-11-08
 
 ## Environment (installed 2026-11-07, versions in docs/ARCHITECTURE.md)
 Node 26.13.0, npm 11.20.0, JDK Temurin 17.0.21, Android Studio, Android SDK (platform 37.0, build-tools 37.0.0, NDK 27.1.12297006). `JAVA_HOME`/`ANDROID_HOME`/Path set at user level.
-Not installed: Docker, PostgreSQL (needed Phase 7).
+Not installed: Docker, system PostgreSQL. Phase 7 uses `embedded-postgres` (PostgreSQL 17 from node_modules) instead.
 Emulator: AVD `reclaim_pixel` (Pixel 7, Android 15 / API 35 Google APIs x86_64) created and used for verification. A pre-existing AVD `Nexus_6_API_28` was also present.
 
 ## Phase 0 — done
@@ -275,3 +275,13 @@ Before Play submission: Accessibility declaration + demo video, privacy policy/D
 - Kept only Pip's soft pop when tapping Pip (quiet; silent when the phone is on silent/vibrate; "Pip sounds" switch in Profile). The other effects and focus soundscapes were tried and removed at the developer's request ("explore later"); `mobile/scripts/make_sounds.py --all` still generates them.
 - Also in this round: onboarding level picker is instant until Continue; reel-limit "Not now" pauses the Short before Home; floating Pip hides only after 1.5 s without a Short. Not yet verified on a phone.
 - Tests: Jest 198/198 (twice), Kotlin unit tests pass, typecheck and lint clean.
+
+## Phase 7 — Backend (2026-11-09, uncommitted)
+Lean scope agreed with the developer: Google sign-in plus backup and restore, Neon + Render free tiers. Details and what was left out on purpose: IMPLEMENTATION_PLAN.md "Phase 7 scope as built". Routes and rules: docs/API_CONTRACT.md. How to run: backend/README.md.
+- Stack: NestJS 12.2, Prisma 7.10 (pg adapter), PostgreSQL 17, jose (JWT), google-auth-library, zod env check, class-validator, throttler, helmet, Swagger. All versions pinned.
+- Schema: users, refresh_tokens (hashed), user_settings (versioned JSON), consents, focus_sessions, gym_attempts, gym_workouts; every user table cascades on delete. One migration (`20261109144946_init`), applied to a fresh local database. `database/schema.sql` marked superseded.
+- Tests (`npm test`): 29/29 integration tests against a throwaway PostgreSQL with the real migrations; only Google is faked. Covers health, sign-in create/return, forged Google tokens, tampered or foreign-secret access tokens, refresh rotation, reuse revoking all sessions, logout, expired refresh, settings 409 (including four concurrent writers: one wins), 64 KB and 1 MB limits, bad JSON, idempotent batches, paging, validation 400s with nothing stored, user A/B isolation (including a borrowed paging cursor), export, deletion removing every row, auth 429, Swagger listing exactly the 17 routes, security headers, no CORS by default, startup refusing weak config.
+- Smoke run: `npm run build` then `node dist/main.js` against the local database: /v1/health ok, /v1/docs 200, sign-in 503 "not configured" (no Google client id yet), /v1/me 401.
+- `render.yaml` blueprint added (not deployed). Typecheck clean. No backend lint configured.
+- Note: Jest needs `--experimental-vm-modules` because NestJS 12 ships ES modules only; the `npm test` script passes it.
+- Not done: release keystore, Google OAuth clients, Neon project, Render deploy (developer accounts needed); mobile sign-in and sync.

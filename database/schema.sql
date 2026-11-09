@@ -1,3 +1,5 @@
+-- SUPERSEDED (Phase 7): the schema now lives in backend/prisma/schema.prisma and its
+-- migrations under backend/prisma/migrations. This early draft is kept for reference only.
 -- RECLAIM initial PostgreSQL schema (v0.1)
 -- UUID generation: CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;

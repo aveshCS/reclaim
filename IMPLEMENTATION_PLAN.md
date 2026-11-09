@@ -823,6 +823,30 @@ rejected. - Duplicate idempotent requests do not duplicate records. -
 Swagger accurately reflects implemented endpoints. - `npm run build`,
 tests and lint pass.
 
+### Phase 7 scope as built (2026-11-09)
+
+Agreed with the developer: a lean backend for **Google sign-in plus backup and
+restore**, on free tiers (Neon PostgreSQL, Render web service). The app stays
+local-first and works with no account.
+
+Built: NestJS 12 + Prisma 7, env validation, Google ID token sign-in, rotating
+refresh tokens with reuse detection, settings backup with version conflicts
+(409), idempotent batches for consents, focus sessions, gym attempts and gym
+workouts, cursor paging, export, account deletion by cascade, `/v1` prefix,
+Swagger, health, error shape, request ids, rate limits, payload caps, CORS off
+by default, integration tests on a disposable PostgreSQL, `render.yaml`.
+
+Deliberately not built, and why:
+- Docker Compose: a real PostgreSQL runs from `embedded-postgres` instead.
+- Seed of exercises: exercises ship inside the app; the server stores none.
+- Usage, tracked apps, interventions, insights endpoints: usage data stays on
+  the phone (privacy by default). Revisit only if a feature needs it.
+- Lint for the backend: not set up yet; type-check and tests are the gate.
+
+Still to do for Phase 7: release keystore, Google OAuth clients, Neon and
+Render accounts (developer), then the mobile side (Google sign-in through
+Android Credential Manager, a sync queue, restore on a new phone).
+
 ## Phase 8 --- Rules-based behavioral coach
 
 **Goal:** Deliver explainable interventions without ML.

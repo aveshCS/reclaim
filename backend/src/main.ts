@@ -1,13 +1,19 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import { AppModule } from './app.module';
+import 'reflect-metadata';
+import { Logger } from '@nestjs/common';
+import { createApp } from './app.factory.ts';
+import { loadEnv } from './config/env.ts';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('v1');
-  app.enableCors({ origin: process.env.ALLOWED_ORIGINS?.split(',') ?? [], credentials: true });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
-  const port = Number(process.env.PORT ?? 3000);
-  await app.listen(port);
+  const env = loadEnv(); // fails fast with a clear message if anything is missing
+  const app = await createApp(env);
+  await app.listen(env.PORT, '0.0.0.0');
+  new Logger('RECLAIM').log(
+    `API on port ${env.PORT} (${env.NODE_ENV})${env.docsEnabled ? ', docs at /v1/docs' : ''}`,
+  );
 }
-bootstrap();
+
+bootstrap().catch(err => {
+  // Startup errors (bad env, database down) end the process with a readable reason.
+  console.error(err instanceof Error ? err.message : err);
+  process.exit(1);
+});
