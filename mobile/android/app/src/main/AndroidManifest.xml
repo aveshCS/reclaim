@@ -38,9 +38,12 @@
         </intent-filter>
       </activity>
 
-      <!-- Mindful pause (opt-in). Reads only which app opened; never window content. -->
+      <!-- Mindful pause (opt-in). Runs in its own small process (":pause") so clearing RECLAIM
+           from Recents (Xiaomi "SwipeUpClean"/"OneKeyClean" kill the app's process) doesn't
+           stop it. Settings are shared through GateStore's two-file, multi-process storage. -->
       <service
         android:name=".gate.PauseGateService"
+        android:process=":pause"
         android:exported="false"
         android:label="@string/pause_gate_label"
         android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">

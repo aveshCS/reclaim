@@ -61,12 +61,19 @@ class PauseOverlay(
       val breathSeconds: Int = 5,
       val allowMinutes: Int = 5,
       val goBack: Int = AccessibilityService.GLOBAL_ACTION_HOME,
+      /**
+       * A short video is playing underneath (reel limit, Strict on Shorts). Pause it before going
+       * Home, or YouTube carries on in a picture-in-picture window. Never set for app or site
+       * pauses, so music playing elsewhere isn't touched.
+       */
+      val pauseMedia: Boolean = false,
   )
 
   private val wm = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
   private var root: LinearLayout? = null
   private var timer: CountDownTimer? = null
   private var goBackAction = AccessibilityService.GLOBAL_ACTION_HOME
+  private var pauseMediaOnLeave = false
 
   /** Package the pause is currently shown for, or null when hidden. */
   var showingFor: String? = null
@@ -131,18 +138,19 @@ class PauseOverlay(
       question: String?,
       openVerb: (Int) -> String,
       goBack: Int = AccessibilityService.GLOBAL_ACTION_HOME,
+      pauseMedia: Boolean = false,
   ): Prompt {
     if (lockedReason != null) {
       return Prompt(
           hostPkg, "$subject is paused for now.", lockedReason,
           openVerb(Intensity.EMERGENCY_ALLOW_MINUTES), allowKey, Mode.LOCKED,
-          Intensity.EMERGENCY_WAIT_SECONDS, Intensity.EMERGENCY_ALLOW_MINUTES, goBack)
+          Intensity.EMERGENCY_WAIT_SECONDS, Intensity.EMERGENCY_ALLOW_MINUTES, goBack, pauseMedia)
     }
     val minutes = Intensity.allowMinutes(level, store.allowMinutes)
     return Prompt(
         hostPkg, title, question, openVerb(minutes), allowKey,
         if (level >= Intensity.FIRM) Mode.FIRM else Mode.PAUSE,
-        Intensity.breathSeconds(level), minutes, goBack)
+        Intensity.breathSeconds(level), minutes, goBack, pauseMedia)
   }
 
   fun appPrompt(pkg: String, level: Int, lockedReason: String?): Prompt {
@@ -157,12 +165,13 @@ class PauseOverlay(
 
   fun reelsPrompt(pkg: String, count: Int, limit: Int, level: Int) =
       build(pkg, "Reels", "reels", level, null, "That's $count reels today.",
-          "You set a limit of $limit. Want to stop here?", { m -> "Keep watching for $m min" })
+          "You set a limit of $limit. Want to stop here?", { m -> "Keep watching for $m min" },
+          pauseMedia = true)
 
   /** Strict mode with the reels counter on: Shorts / Reels themselves are paused. */
   fun reelsLockedPrompt(pkg: String, lockedReason: String) =
       build(pkg, "Shorts and Reels", "reels", Intensity.STRICT, lockedReason, "", null,
-          { m -> "Watch for $m min" })
+          { m -> "Watch for $m min" }, pauseMedia = true)
 
   // ---- Showing ---------------------------------------------------------------------------
 
@@ -171,6 +180,7 @@ class PauseOverlay(
     hide()
     val pkg = prompt.hostPkg
     goBackAction = prompt.goBack
+    pauseMediaOnLeave = prompt.pauseMedia
 
     val view =
         object : LinearLayout(service) {
@@ -348,12 +358,27 @@ class PauseOverlay(
     if (leaving) return
     leaving = true
     store.count("notnow")
-    service.performGlobalAction(goBackAction)
-    val delay = if (goBackAction == AccessibilityService.GLOBAL_ACTION_HOME) 800L else 250L
+    if (pauseMediaOnLeave) {
+      pausePlayingVideo()
+      // Give the app a moment to pause, so it doesn't pop out into picture-in-picture.
+      view.postDelayed({ service.performGlobalAction(goBackAction) }, 180)
+    } else {
+      service.performGlobalAction(goBackAction)
+    }
+    val delay = if (goBackAction == AccessibilityService.GLOBAL_ACTION_HOME) 900L else 250L
     view.postDelayed({ if (root === view) hide() }, delay)
   }
 
   private var leaving = false
+
+  /** The same "pause" a headphone button sends; it goes to the app that is playing. */
+  private fun pausePlayingVideo() {
+    try {
+      val am = service.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+      am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE))
+      am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE))
+    } catch (_: Exception) {}
+  }
 
   fun hide() {
     timer?.cancel()

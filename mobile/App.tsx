@@ -8,6 +8,7 @@ import { FocusProvider } from './src/features/focus/FocusContext';
 import { GymProvider } from './src/features/gym/GymContext';
 import { PauseGateSync } from './src/features/pause/PauseSetup';
 import { RootTabs } from './src/navigation/RootTabs';
+import { SoundSync } from './src/features/sound/SoundSync';
 import { SettingsProvider, useSettings } from './src/state/SettingsContext';
 import { colors } from './src/theme/tokens';
 
@@ -58,6 +59,7 @@ export default function App() {
         <FocusProvider>
           <GymProvider>
             <PauseGateSync />
+            <SoundSync />
             <Gate />
           </GymProvider>
         </FocusProvider>

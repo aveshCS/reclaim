@@ -6,6 +6,7 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.module.model.ReactModuleInfo
 import com.facebook.react.module.model.ReactModuleInfoProvider
 import com.reclaim.gate.PauseGateModule
+import com.reclaim.sound.SoundModule
 
 /** Registers RECLAIM's own native modules (legacy module API, loaded via the new-arch interop layer). */
 class ReclaimPackage : BaseReactPackage() {
@@ -13,6 +14,7 @@ class ReclaimPackage : BaseReactPackage() {
       when (name) {
         UsageStatsModule.NAME -> UsageStatsModule(reactContext)
         PauseGateModule.NAME -> PauseGateModule(reactContext)
+        SoundModule.NAME -> SoundModule(reactContext)
         else -> null
       }
 
@@ -31,6 +33,15 @@ class ReclaimPackage : BaseReactPackage() {
             ReactModuleInfo(
                 name = PauseGateModule.NAME,
                 className = PauseGateModule::class.java.name,
+                canOverrideExistingModule = false,
+                needsEagerInit = false,
+                isCxxModule = false,
+                isTurboModule = false,
+            ),
+        SoundModule.NAME to
+            ReactModuleInfo(
+                name = SoundModule.NAME,
+                className = SoundModule::class.java.name,
                 canOverrideExistingModule = false,
                 needsEagerInit = false,
                 isCxxModule = false,

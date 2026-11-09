@@ -28,6 +28,8 @@ const seedCompleted = (patch: object = {}) =>
 const press = (label: string) => fireEvent.press(screen.getByLabelText(label));
 
 // Let any in-flight save from the previous test finish before wiping storage.
+const skipIntro = async () =>
+  fireEvent.press(await screen.findByLabelText('Skip intro'));
 const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 afterEach(async () => {
   await flush();
@@ -88,8 +90,23 @@ describe('main app (onboarding already done)', () => {
 });
 
 describe('onboarding with Pip', () => {
+  it('opens with the scroll intro: holding pauses the feed and Pip says hi', async () => {
+    await render(<App />);
+    expect(await screen.findByText('Endless.')).toBeTruthy();
+    const hold = screen.getByLabelText('Hold to pause the scroll');
+    // The full hold (one slow breath), as screen readers trigger it.
+    await fireEvent(hold, 'accessibilityAction', {
+      nativeEvent: { actionName: 'activate' },
+    });
+    expect(await screen.findByText("Hi! I'm Pip.")).toBeTruthy();
+    await fireEvent.press(await screen.findByLabelText("Let's begin"));
+    expect(await screen.findByText("Hi, I'm Pip! 🌱")).toBeTruthy();
+    expect((await stored()).onboarding.step).toBe('hello');
+  });
+
   it('can be skipped end to end without recording consent or profile data', async () => {
     await render(<App />);
+    await skipIntro();
     expect(await screen.findByText("Hi, I'm Pip! 🌱")).toBeTruthy();
     await press('Skip'); // name
     await press('Skip'); // role
@@ -115,6 +132,7 @@ describe('onboarding with Pip', () => {
 
   it('builds a student profile, shows the reality check and the pledge', async () => {
     await render(<App />);
+    await skipIntro();
     await fireEvent.changeText(
       await screen.findByLabelText('Your first name'),
       'Asha',
@@ -176,6 +194,7 @@ describe('onboarding with Pip', () => {
 
   it('does not ask a working person about exams', async () => {
     await render(<App />);
+    await skipIntro();
     await fireEvent.press(await screen.findByLabelText('Skip'));
     await press('Working');
     await press('Continue');
@@ -189,7 +208,7 @@ describe('onboarding with Pip', () => {
       onboarding: { completed: false, step: 'age' },
     });
     await render(<App />);
-    expect(await screen.findByText('Quick one: how old are you?')).toBeTruthy();
+        expect(await screen.findByText('Quick one: how old are you?')).toBeTruthy();
     await press('Back');
     expect(
       screen.getByText(

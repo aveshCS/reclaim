@@ -42,6 +42,8 @@ import {
   SUGGESTED_SITES,
 } from '../pause/WebAndReels';
 import { IntensityPicker } from '../pause/IntensityPicker';
+import { KeepRunning } from '../pause/KeepRunning';
+import { IntroPromo } from './IntroPromo';
 import { AppPicker } from '../usage/AppPicker';
 import { REEL_LIMITS } from '../../state/settings';
 
@@ -91,7 +93,13 @@ export function OnboardingFlow() {
   const tick = ticked === step;
   const toggleTick = () => setTicked(t => (t === step ? null : step));
   const [picker, setPicker] = useState(false);
-  const { on: serviceOn, check: checkService } = usePauseService();
+  const [kept, setKept] = useState({ autostart: false, battery: false });
+  const {
+    on: serviceOn,
+    check: checkService,
+    stopped: serviceStopped,
+    maker,
+  } = usePauseService();
   const { gate, reels, web } = settings;
 
   const protectSummary = () => {
@@ -114,6 +122,58 @@ export function OnboardingFlow() {
 
   const view = ((): StepView => {
     switch (step) {
+      case 'intro':
+        return { chat: [], body: null };
+
+      case 'protectKeepAlive': {
+        const xiaomi = pauseGate.maker?.() === 'xiaomi';
+        return {
+          chat: [
+            'One more thing.',
+            xiaomi
+              ? 'Xiaomi phones close apps to save battery. Let\'s keep me awake, so I can pause for you.'
+              : 'Some phones close apps to save battery. Let\'s keep me awake, so I can pause for you.',
+          ],
+          body: (
+            <>
+              {xiaomi ? (
+                <Button
+                  label={kept.autostart ? '✓ Autostart' : '1. Allow Autostart'}
+                  variant={kept.autostart ? 'secondary' : 'primary'}
+                  onPress={() => {
+                    pauseGate.openAutostartSettings();
+                    setKept(k => ({ ...k, autostart: true }));
+                  }}
+                />
+              ) : null}
+              <Button
+                label={
+                  kept.battery
+                    ? '✓ Battery: No restrictions'
+                    : `${xiaomi ? '2. ' : ''}Battery: No restrictions`
+                }
+                variant={kept.battery ? 'secondary' : 'primary'}
+                onPress={() => {
+                  pauseGate.openAppSettings();
+                  setKept(k => ({ ...k, battery: true }));
+                }}
+              />
+              <Txt variant="caption" center>
+                🔒 Tip: in Recents, long-press RECLAIM and lock it.
+              </Txt>
+              <Button
+                label="Continue"
+                variant={kept.battery ? 'primary' : 'secondary'}
+                onPress={next}
+              />
+              {!kept.battery ? (
+                <Button label="Skip" variant="ghost" onPress={next} />
+              ) : null}
+            </>
+          ),
+        };
+      }
+
       case 'hello':
         return {
           chat: [
@@ -595,7 +655,7 @@ export function OnboardingFlow() {
                 ],
           body: (
             <>
-              <IntensityPicker suggested={suggested} />
+              <IntensityPicker suggested={suggested} free />
               <Button label="Continue" onPress={next} />
             </>
           ),
@@ -611,7 +671,11 @@ export function OnboardingFlow() {
               ],
               mood: 'cheer',
               chatKey: 'on',
-              body: <Button label="Continue" onPress={next} />,
+              body: (
+                <>
+                  <Button label="Continue" onPress={next} />
+                </>
+              ),
             }
           : {
               chat: [
@@ -621,6 +685,13 @@ export function OnboardingFlow() {
               chatKey: 'off',
               body: (
                 <>
+                  {serviceStopped ? (
+                    <KeepRunning
+                      stopped
+                      maker={maker}
+                      onDone={checkService}
+                    />
+                  ) : null}
                   <Card>
                     <Txt>1. Tap the button below.</Txt>
                     <Txt>
@@ -827,6 +898,10 @@ export function OnboardingFlow() {
   })();
 
   const showBigPip = step === 'ready';
+
+  if (step === 'intro') {
+    return <IntroPromo onDone={next} />;
+  }
 
   return (
     <ScreenContainer>

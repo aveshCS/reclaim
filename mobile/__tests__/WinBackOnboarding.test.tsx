@@ -127,6 +127,13 @@ describe('onboarding: win back your time', () => {
 
     // Level: Gentle by default; the user picks Firm.
     expect(await screen.findByText('How firm should I be?')).toBeTruthy();
+    // Nothing is final during onboarding: back and forth applies at once, no "From …" wait.
+    await press(/^Firm/);
+    await press(/^Aware/);
+    expect(screen.queryByText(/^From /)).toBeNull();
+    expect(screen.getByLabelText(/^Aware/).props.accessibilityState).toMatchObject({
+      selected: true,
+    });
     await press(/^Firm/);
     await press('Continue');
 

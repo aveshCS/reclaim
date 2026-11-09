@@ -27,6 +27,7 @@ import { colors, fonts, radius } from '../../theme/tokens';
 import { localDateKey, startOfLocalDayDaysAgo, weekdayShort } from '../../utils/time';
 import { usePauseService } from './PauseSetup';
 import { DisclosureRows } from './DisclosureRows';
+import { KeepRunning } from './KeepRunning';
 
 export const SUGGESTED_SITES = [
   'youtube.com',
@@ -166,25 +167,13 @@ function OffLink({ label, onPress }: { label: string; onPress: () => void }) {
   );
 }
 
-function ServiceOff({ onOpen }: { onOpen: () => void }) {
-  return (
-    <View style={styles.warn}>
-      <Txt variant="bodyBold">One step left</Txt>
-      <Txt>
-        In Android Settings › Accessibility, open "RECLAIM mindful pause" and
-        switch it on, then come back.
-      </Txt>
-      <Button label="Open Accessibility settings" onPress={onOpen} />
-    </View>
-  );
-}
 
 // ---------------------------------------------------------------- Website pause
 
 export function WebsitePause() {
   const s = useSettings();
   const { web } = s.settings;
-  const { on, check } = usePauseService();
+  const { on, check, stopped, maker } = usePauseService();
   const [disclose, setDisclose] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -218,7 +207,7 @@ export function WebsitePause() {
     <Tile
       icon="🌐"
       label="Website pause"
-      summary={!web.enabled ? 'Off' : on === false ? 'One step left' : `On · ${n} ${n === 1 ? 'site' : 'sites'}`}
+      summary={!web.enabled ? 'Off' : stopped ? 'Stopped by your phone' : on === false ? 'One step left' : `On · ${n} ${n === 1 ? 'site' : 'sites'}`}
       tone="butter"
       defaultOpen={!web.enabled}
     >
@@ -261,7 +250,7 @@ export function WebsitePause() {
           </View>
           {error ? <Txt color={colors.danger}>{error}</Txt> : null}
           {on === false ? (
-            <ServiceOff onOpen={() => pauseGate.openSettings().then(check)} />
+            <KeepRunning stopped={stopped} maker={maker} onDone={check} />
           ) : on ? (
             <Txt variant="bodyBold" color={colors.leaf}>
               ✓ On for {web.sites.length} {web.sites.length === 1 ? 'site' : 'sites'}.
@@ -363,7 +352,7 @@ export function reelMood(count: number, limit: number): { mood: PipMood; line: s
 export function ReelsCounter() {
   const s = useSettings();
   const { reels } = s.settings;
-  const { on, check } = usePauseService();
+  const { on, check, stopped, maker } = usePauseService();
   const [disclose, setDisclose] = useState(false);
   const { days, today } = useReelStats(reels.enabled && on === true);
 
@@ -379,6 +368,8 @@ export function ReelsCounter() {
   const ready = reels.enabled && on !== false;
   const summary = !reels.enabled
     ? 'Off'
+    : stopped
+    ? 'Stopped by your phone'
     : on === false
     ? 'One step left'
     : `${count} ${count === 1 ? 'reel' : 'reels'} today${reels.limit ? ` · limit ${reels.limit}` : ''}`;
@@ -412,7 +403,7 @@ export function ReelsCounter() {
       ) : (
         <>
           {on === false ? (
-            <ServiceOff onOpen={() => pauseGate.openSettings().then(check)} />
+            <KeepRunning stopped={stopped} maker={maker} onDone={check} />
           ) : (
             <>
               {today && count > 0 ? (

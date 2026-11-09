@@ -163,7 +163,7 @@ export function sanitizeSettings(raw: unknown): AppSettings {
     onboarding.step,
   )
     ? (onboarding.step as OnboardingStep)
-    : 'hello';
+    : 'intro';
   const choice =
     monitoring.choice === 'declined' || monitoring.choice === 'requested'
       ? monitoring.choice
@@ -207,6 +207,7 @@ export function sanitizeSettings(raw: unknown): AppSettings {
       showPip: !(isRecord(raw.reels) && raw.reels.showPip === false),
     },
     intensity: sanitizeIntensity(raw.intensity, Date.now()),
+    sound: { effects: !(isRecord(raw.sound) && raw.sound.effects === false) },
     plan: parsePlan(raw.plan),
     reset: parseReset(raw.reset),
     practice: {

@@ -13,6 +13,7 @@ import {
   AppSettings,
   DEFAULT_SETTINGS,
   ExamId,
+  KEEP_ALIVE_MAKERS,
   platformCaps,
   PriorityId,
   RoleId,
@@ -58,6 +59,9 @@ type SettingsApi = {
   startStrict: (until: number) => void;
   endStrictEarly: () => void;
   cancelPendingLevel: () => void;
+  setLevelNow: (level: 1 | 2 | 3) => void;
+  clearStrictNow: () => void;
+  setSoundEffects: (on: boolean) => void;
   setPlan: (p: IfThenPlan | null) => void;
   startReset: (startDate: string, limitMin: number) => void;
   setResetScore: (which: 'baseline' | 'final', score: number) => void;
@@ -72,6 +76,8 @@ const SettingsContext = createContext<SettingsApi | null>(null);
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // The "win back your time" onboarding steps need the Android pause service.
   platformCaps.protect = pauseGate.isAvailable();
+  platformCaps.keepAlive =
+    platformCaps.protect && KEEP_ALIVE_MAKERS.includes(pauseGate.maker?.() ?? '');
   const [settings, dispatch] = useReducer(settingsReducer, DEFAULT_SETTINGS);
   const [ready, setReady] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -156,6 +162,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'startStrict', until, now: Date.now() }),
       endStrictEarly: () => dispatch({ type: 'endStrictEarly', now: Date.now() }),
       cancelPendingLevel: () => dispatch({ type: 'cancelPendingLevel' }),
+      setLevelNow: level => dispatch({ type: 'setLevelNow', level }),
+      clearStrictNow: () => dispatch({ type: 'clearStrictNow' }),
+      setSoundEffects: on => dispatch({ type: 'setSoundEffects', on }),
       setPlan: plan => dispatch({ type: 'setPlan', plan }),
       startReset: (startDate, limitMin) =>
         dispatch({ type: 'startReset', startDate, limitMin }),

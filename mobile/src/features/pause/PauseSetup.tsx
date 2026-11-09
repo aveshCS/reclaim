@@ -15,6 +15,7 @@ import { colors, radius } from '../../theme/tokens';
 import { localDateKey, startOfLocalDayDaysAgo } from '../../utils/time';
 import { AppPicker } from '../usage/AppPicker';
 import { DisclosureRows } from './DisclosureRows';
+import { KeepRunning } from './KeepRunning';
 
 /** Keeps the native pause configuration in step with settings. Render once near the root. */
 export function PauseGateSync() {
@@ -55,8 +56,18 @@ export function PauseGateSync() {
 /** Re-checks whether the Android service is on, including after returning from Settings. */
 export function usePauseService() {
   const [on, setOn] = useState<boolean | null>(null);
+  const [stopped, setStopped] = useState(false);
+  const [maker, setMaker] = useState('');
   const check = useCallback(async () => {
-    setOn(await pauseGate.isServiceEnabled());
+    if (pauseGate.getServiceState) {
+      const st = await pauseGate.getServiceState();
+      // "On" means running. Switched on but not running = the phone stopped it.
+      setOn(st.enabled && st.running);
+      setStopped(st.enabled && !st.running);
+      setMaker(st.maker);
+    } else {
+      setOn(await pauseGate.isServiceEnabled());
+    }
   }, []);
   useEffect(() => {
     check();
@@ -67,7 +78,7 @@ export function usePauseService() {
     });
     return () => sub.remove();
   }, [check]);
-  return { on, check };
+  return { on, check, stopped, maker };
 }
 
 const APP_ROWS = [
@@ -185,7 +196,7 @@ function last7(): string[] {
 export function PauseSetup() {
   const s = useSettings();
   const { gate, plan } = s.settings;
-  const { on, check } = usePauseService();
+  const { on, check, stopped, maker } = usePauseService();
   const [disclose, setDisclose] = useState(false);
   const [picker, setPicker] = useState(false);
   const [stats, setStats] = useState<PauseDayStats[]>([]);
@@ -232,6 +243,8 @@ export function PauseSetup() {
   const apps = gate.packages.length;
   const summary = !gate.enabled
     ? 'Off'
+    : stopped
+    ? 'Stopped by your phone'
     : on === false
     ? 'One step left'
     : apps === 0
@@ -277,14 +290,7 @@ export function PauseSetup() {
             ))}
           </View>
           {on === false ? (
-            <View style={styles.warn}>
-              <Txt variant="bodyBold">Switch it on in Android</Txt>
-              <Txt>Accessibility › RECLAIM mindful pause › On.</Txt>
-              <Button
-                label="Open Accessibility settings"
-                onPress={() => pauseGate.openSettings().then(check)}
-              />
-            </View>
+            <KeepRunning stopped={stopped} maker={maker} onDone={check} />
           ) : on ? (
             <Txt variant="bodyBold" color={colors.leaf}>
               ✓ The pause is on.

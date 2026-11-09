@@ -62,6 +62,7 @@ class PipBuddy(private val service: AccessibilityService) {
   private var countView: TextView? = null
   private var lineView: TextView? = null
   private var shownCount = -1
+  private var shownLimit = -1
 
   val isShowing: Boolean
     get() = root != null
@@ -79,7 +80,10 @@ class PipBuddy(private val service: AccessibilityService) {
 
   /** Shows Pip (if needed) and updates the count and face. */
   fun show(count: Int, limit: Int) {
+    // Called several times a second while Shorts are on screen: only redraw on a change.
+    if (root != null && count == shownCount && limit == shownLimit) return
     if (root == null && !create()) return
+    shownLimit = limit
     val stage = BuddyMood.stage(count, limit)
     pip?.stage = stage
     countView?.text = if (limit > 0) "$count / $limit" else "$count"

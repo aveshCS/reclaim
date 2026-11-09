@@ -2,7 +2,6 @@ package com.reclaim.gate
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
-import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -41,11 +40,32 @@ class PauseGateService : AccessibilityService() {
   private val handler = Handler(Looper.getMainLooper())
   private var urlCheckPending = false
 
-  private val prefsListener =
-      SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == "webEnabled" || key == "reelsEnabled") applyEventTypes()
-        if ((key == "reelsEnabled" || key == "reelBuddy") && (!store.reelsEnabled || !store.reelBuddy)) {
-          buddy.hide()
+  /** Settings live in another process; re-read them at most once a second (and every 5 s). */
+  private var lastConfigCheck = 0L
+  private var appliedWeb: Boolean? = null
+  private var appliedReels: Boolean? = null
+
+  private fun watchConfig(force: Boolean = false) {
+    val now = System.currentTimeMillis()
+    if (!force && now - lastConfigCheck < 1_000) return
+    lastConfigCheck = now
+    val web = store.webEnabled
+    val reel = store.reelsEnabled
+    if (web != appliedWeb || reel != appliedReels) {
+      appliedWeb = web
+      appliedReels = reel
+      applyEventTypes()
+    }
+    if (!reel || !store.reelBuddy) buddy.hide()
+  }
+
+  private val tick =
+      object : Runnable {
+        override fun run() {
+          try {
+            watchConfig()
+          } catch (_: Exception) {}
+          handler.postDelayed(this, 5_000)
         }
       }
 
@@ -65,9 +85,10 @@ class PauseGateService : AccessibilityService() {
 
   override fun onServiceConnected() {
     ensureReady()
+    store.migrateStatsOnce()
     store.prune()
-    store.registerListener(prefsListener)
-    applyEventTypes()
+    watchConfig(force = true)
+    handler.postDelayed(tick, 5_000)
   }
 
   /** Ask Android only for the events the switched-on features need. */
@@ -91,6 +112,7 @@ class PauseGateService : AccessibilityService() {
   override fun onAccessibilityEvent(event: AccessibilityEvent?) {
     if (event == null) return
     val ov = ensureReady()
+    watchConfig()
     val pkg = event.packageName?.toString() ?: return
     when (event.eventType) {
       AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> onWindowState(event, pkg, ov)
@@ -228,7 +250,7 @@ class PauseGateService : AccessibilityService() {
   private fun browserReels(browser: String, text: String?, ov: PauseOverlay) {
     val sv = WebMatcher.shortVideo(text)
     if (sv == null) {
-      if (buddyFor == browser) buddy.hide()
+      if (buddyFor == browser) buddyMiss()
       return
     }
     if (strictReels(browser, ov)) return
@@ -336,8 +358,9 @@ class PauseGateService : AccessibilityService() {
       showBuddy(pkg)
       return
     }
-    // No short-video page on screen (e.g. back on the home feed): Pip steps away.
-    buddy.hide()
+    // No short-video page in the middle right now. Mid-swipe this happens for a split second,
+    // so Pip only steps away after a real gap (e.g. back on the home feed).
+    buddyMiss()
   }
 
   /** Strict mode: Shorts / Reels themselves are paused (with the same emergency unlock). */
@@ -374,6 +397,17 @@ class PauseGateService : AccessibilityService() {
 
   private val buddy by lazy { PipBuddy(this) }
   private var buddyFor: String? = null
+  private var lastPageSeenAt = 0L
+  private val buddyGraceMs = 1_500L
+  private val buddyHideCheck = Runnable {
+    if (System.currentTimeMillis() - lastPageSeenAt >= buddyGraceMs) buddy.hide()
+  }
+
+  private fun buddyMiss() {
+    if (!buddy.isShowing) return
+    handler.removeCallbacks(buddyHideCheck)
+    handler.postDelayed(buddyHideCheck, buddyGraceMs)
+  }
 
   private fun showBuddy(pkg: String) {
     val ov = ensureReady()
@@ -382,6 +416,8 @@ class PauseGateService : AccessibilityService() {
       return
     }
     buddyFor = pkg
+    lastPageSeenAt = System.currentTimeMillis()
+    handler.removeCallbacks(buddyHideCheck)
     buddy.show(store.reelsOn(GateStore.day(System.currentTimeMillis())), store.reelLimit)
   }
 
@@ -389,7 +425,6 @@ class PauseGateService : AccessibilityService() {
 
   override fun onDestroy() {
     handler.removeCallbacksAndMessages(null)
-    if (::store.isInitialized) store.unregisterListener(prefsListener)
     overlay?.hide()
     buddy.hide()
     super.onDestroy()

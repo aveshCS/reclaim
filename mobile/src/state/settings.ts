@@ -15,6 +15,10 @@ import {
 
 export type ProtectChoice = 'ask' | 'yes' | 'later';
 
+/** Pip's sounds (on by default, and silent when the phone is). */
+export type SoundSettings = { effects: boolean };
+export const DEFAULT_SOUND: SoundSettings = { effects: true };
+
 export const PRIORITIES = [
   { id: 'study', label: 'Study' },
   { id: 'work', label: 'Meaningful work' },
@@ -80,6 +84,7 @@ export const MIN_SCREEN_HOURS = 1;
 export const MAX_SCREEN_HOURS = 16;
 
 export const ONBOARDING_STEPS = [
+  'intro',
   'hello',
   'role',
   'exam',
@@ -94,6 +99,7 @@ export const ONBOARDING_STEPS = [
   'protectWeb',
   'protectLevel',
   'protectEnable',
+  'protectKeepAlive',
   'priorities',
   'duration',
   'monitoring',
@@ -195,6 +201,7 @@ export type AppSettings = {
   web: WebPause;
   reels: ReelsCounter;
   intensity: Intensity;
+  sound: SoundSettings;
   plan: IfThenPlan | null;
   reset: ResetChallenge | null;
   /** Local date (YYYY-MM-DD) the daily practice was last finished. Detailed attempts come in Phase 6. */
@@ -215,7 +222,7 @@ export const DEFAULT_PROFILE: Profile = {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   schemaVersion: 1,
-  onboarding: { completed: false, step: 'hello', protect: 'ask' },
+  onboarding: { completed: false, step: 'intro', protect: 'ask' },
   profile: DEFAULT_PROFILE,
   priorities: [],
   focusMinutes: DEFAULT_FOCUS_MINUTES,
@@ -225,6 +232,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   web: { enabled: false, sites: [] },
   reels: { enabled: false, limit: 0, showPip: true },
   intensity: DEFAULT_INTENSITY,
+  sound: DEFAULT_SOUND,
   plan: null,
   reset: null,
   practice: { lastCompletedDate: null },
@@ -266,6 +274,10 @@ export type SettingsAction =
   | { type: 'startStrict'; until: number; now: number }
   | { type: 'endStrictEarly'; now: number }
   | { type: 'cancelPendingLevel' }
+  /** Onboarding only: nothing is final until Continue, so any level applies at once. */
+  | { type: 'setLevelNow'; level: 1 | 2 | 3 }
+  | { type: 'clearStrictNow' }
+  | { type: 'setSoundEffects'; on: boolean }
   | { type: 'setPlan'; plan: IfThenPlan | null }
   | { type: 'startReset'; startDate: string; limitMin: number }
   | { type: 'setResetScore'; which: 'baseline' | 'final'; score: number }
@@ -347,7 +359,23 @@ export function cleanName(name: string): string {
  * What this device can do. The "win back your time" steps need the Android pause service, so
  * they stay hidden unless the app says it is available (set once at start-up).
  */
-export const platformCaps = { protect: false };
+export const platformCaps = { protect: false, keepAlive: false };
+
+/** Phone makers known to close background apps (and with them RECLAIM's pause). */
+export const KEEP_ALIVE_MAKERS = [
+  'xiaomi',
+  'samsung',
+  'oppo',
+  'realme',
+  'oneplus',
+  'vivo',
+  'iqoo',
+  'huawei',
+  'honor',
+  'tecno',
+  'infinix',
+  'motorola',
+];
 
 const PROTECT_SUBSTEPS: readonly OnboardingStep[] = [
   'protectApps',
@@ -365,6 +393,14 @@ export function isStepApplicable(
   }
   if (PROTECT_SUBSTEPS.includes(step)) {
     return platformCaps.protect && s.onboarding.protect === 'yes';
+  }
+  if (step === 'protectKeepAlive') {
+    return (
+      platformCaps.protect &&
+      platformCaps.keepAlive &&
+      s.onboarding.protect === 'yes' &&
+      (s.gate.enabled || s.reels.enabled || s.web.enabled)
+    );
   }
   if (step === 'protectLevel' || step === 'protectEnable') {
     return (
@@ -660,6 +696,18 @@ export function settingsReducer(
 
     case 'endStrictEarly':
       return { ...state, intensity: endStrictEarly(state.intensity, action.now) };
+
+    case 'setLevelNow':
+      return {
+        ...state,
+        intensity: { ...state.intensity, base: action.level, pending: null },
+      };
+
+    case 'setSoundEffects':
+      return { ...state, sound: { ...state.sound, effects: action.on } };
+
+    case 'clearStrictNow':
+      return { ...state, intensity: { ...state.intensity, strictUntil: null } };
 
     case 'cancelPendingLevel':
       return { ...state, intensity: cancelPending(state.intensity) };

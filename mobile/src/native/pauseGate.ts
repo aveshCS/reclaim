@@ -9,8 +9,20 @@ export type PauseDayStats = {
   opened: number;
 };
 
+export type ServiceState = {
+  /** Switched on in Android Settings. */
+  enabled: boolean;
+  /** Actually running. Enabled but not running = the phone stopped it. */
+  running: boolean;
+  /** Phone maker, e.g. "xiaomi" (Xiaomi, Redmi, POCO), lower case. */
+  maker: string;
+};
+
 type NativeGate = {
   isServiceEnabled(): Promise<boolean>;
+  getServiceState(): Promise<ServiceState>;
+  openAutostartSettings(): Promise<boolean>;
+  openAppSettings(): Promise<boolean>;
   openAccessibilitySettings(): Promise<boolean>;
   configure(
     enabled: boolean,
@@ -84,11 +96,42 @@ function native(): NativeGate | null {
 /** Thin, safe wrapper: every call degrades gracefully when the native side is missing. */
 export const pauseGate = {
   isAvailable: () => native() !== null,
+  /** Phone maker, known at start-up ("xiaomi" for Xiaomi/Redmi/POCO), or ''. */
+  maker(): string {
+    const m = (native() as unknown as { maker?: unknown } | null)?.maker;
+    return typeof m === 'string' ? m : '';
+  },
   async isServiceEnabled(): Promise<boolean> {
     try {
       return (await native()?.isServiceEnabled()) ?? false;
     } catch {
       return false;
+    }
+  },
+  async getServiceState(): Promise<ServiceState> {
+    try {
+      const n = native();
+      if (n?.getServiceState) {
+        return await n.getServiceState();
+      }
+      const enabled = (await n?.isServiceEnabled()) ?? false;
+      return { enabled, running: enabled, maker: '' };
+    } catch {
+      return { enabled: false, running: false, maker: '' };
+    }
+  },
+  async openAutostartSettings(): Promise<void> {
+    try {
+      await native()?.openAutostartSettings();
+    } catch {
+      // ignore
+    }
+  },
+  async openAppSettings(): Promise<void> {
+    try {
+      await native()?.openAppSettings();
+    } catch {
+      // ignore
     }
   },
   async openSettings(): Promise<void> {

@@ -23,7 +23,7 @@ describe('onboarding steps', () => {
   it('never moves past either end', () => {
     expect(
       reduce(DEFAULT_SETTINGS, { type: 'previousStep' }).onboarding.step,
-    ).toBe('hello');
+    ).toBe('intro');
     let s = DEFAULT_SETTINGS;
     for (let i = 0; i < 30; i++) {
       s = reduce(s, { type: 'nextStep' });
@@ -159,7 +159,7 @@ describe('sanitizeSettings', () => {
     expect(s.profile).toEqual(DEFAULT_SETTINGS.profile);
     expect(s.onboarding).toEqual({
       completed: true,
-      step: 'hello',
+      step: 'intro',
       protect: 'ask',
     });
     expect(s.focusMinutes).toBe(40);

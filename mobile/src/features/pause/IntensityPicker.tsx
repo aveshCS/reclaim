@@ -18,7 +18,14 @@ import { pauseGate } from '../../native/pauseGate';
  * Choose how firm RECLAIM is: Aware, Gentle, Firm, or Strict for a while.
  * Tighter takes effect now; gentler waits a day (shown, and can be cancelled).
  */
-export function IntensityPicker({ suggested }: { suggested?: 2 | 3 }) {
+export function IntensityPicker({
+  suggested,
+  free = false,
+}: {
+  suggested?: 2 | 3;
+  /** Onboarding: choices aren't final until Continue, so every change applies at once. */
+  free?: boolean;
+}) {
   const s = useSettings();
   const { intensity } = s.settings;
   const now = Date.now();
@@ -43,7 +50,9 @@ export function IntensityPicker({ suggested }: { suggested?: 2 | 3 }) {
           accessibilityLabel={`${l.name}: ${l.short}`}
           onPress={() => {
             haptic.select();
-            if (l.level === everyday) {
+            if (free) {
+              s.setLevelNow(l.level as 1 | 2 | 3);
+            } else if (l.level === everyday) {
               s.cancelPendingLevel(); // back to the level already in force
             } else {
               s.requestLevel(l.level as 1 | 2 | 3);
@@ -95,12 +104,12 @@ export function IntensityPicker({ suggested }: { suggested?: 2 | 3 }) {
             </Txt>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="End Strict early"
-              onPress={s.endStrictEarly}
+              accessibilityLabel={free ? 'Not Strict' : 'End Strict early'}
+              onPress={free ? s.clearStrictNow : s.endStrictEarly}
               hitSlop={8}
             >
               <Txt variant="caption" style={styles.link}>
-                End Strict early (takes up to 24 hours)
+                {free ? 'Not Strict, thanks' : 'End Strict early (takes up to 24 hours)'}
               </Txt>
             </Pressable>
           </>

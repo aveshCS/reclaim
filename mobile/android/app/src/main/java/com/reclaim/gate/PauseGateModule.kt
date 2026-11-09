@@ -21,6 +21,17 @@ class PauseGateModule(private val context: ReactApplicationContext) :
 
   override fun getName() = NAME
 
+  /** Known at start-up, so onboarding can decide which steps to show. */
+  override fun getConstants(): Map<String, Any> = mapOf("maker" to maker())
+
+  private fun maker(): String {
+    val m = android.os.Build.MANUFACTURER.lowercase()
+    return when {
+      m.contains("xiaomi") || m.contains("redmi") || m.contains("poco") -> "xiaomi"
+      else -> m
+    }
+  }
+
   private fun serviceEnabled(): Boolean {
     val expected = ComponentName(context, PauseGateService::class.java)
     val enabled =
@@ -43,6 +54,66 @@ class PauseGateModule(private val context: ReactApplicationContext) :
     } catch (e: Exception) {
       promise.reject("GATE_CHECK_FAILED", e)
     }
+  }
+
+  /**
+   * Switched on in Settings, and actually running? Android lists only bound (running)
+   * services here, so "enabled but not running" means the phone stopped it (Xiaomi does this
+   * when RECLAIM is cleared from Recents with Autostart off).
+   */
+  @ReactMethod
+  fun getServiceState(promise: Promise) {
+    try {
+      val enabled = serviceEnabled()
+      val am = context.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE)
+          as android.view.accessibility.AccessibilityManager
+      val me = ComponentName(context, PauseGateService::class.java).flattenToShortString()
+      val running =
+          am.getEnabledAccessibilityServiceList(
+                  android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+              .any {
+                val c = ComponentName.unflattenFromString(it.id)
+                c != null && c.flattenToShortString() == me
+              }
+      val m = Arguments.createMap()
+      m.putBoolean("enabled", enabled)
+      m.putBoolean("running", running)
+      m.putString("maker", maker())
+      promise.resolve(m)
+    } catch (e: Exception) {
+      promise.reject("GATE_CHECK_FAILED", e)
+    }
+  }
+
+  private fun launch(i: Intent): Boolean =
+      try {
+        val a = context.currentActivity
+        if (a != null) a.startActivity(i)
+        else context.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+      } catch (_: Exception) {
+        false
+      }
+
+  private fun appDetails() =
+      Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+          .setData(android.net.Uri.fromParts("package", context.packageName, null))
+
+  /** Xiaomi's Autostart list (lets RECLAIM's pause restart); falls back to App info. */
+  @ReactMethod
+  fun openAutostartSettings(promise: Promise) {
+    val miui =
+        Intent().setComponent(
+            ComponentName(
+                "com.miui.securitycenter",
+                "com.miui.permcenter.autostart.AutoStartManagementActivity"))
+    promise.resolve(launch(miui) || launch(appDetails()))
+  }
+
+  /** App info, where Xiaomi shows "Battery saver" (choose "No restrictions"). */
+  @ReactMethod
+  fun openAppSettings(promise: Promise) {
+    promise.resolve(launch(appDetails()))
   }
 
   @ReactMethod

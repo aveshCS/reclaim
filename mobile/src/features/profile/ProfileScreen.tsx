@@ -190,6 +190,18 @@ export function ProfileScreen() {
         ) : null}
       </Card>
 
+      <Card>
+        <Txt variant="heading">Sound</Txt>
+        <Chip
+          block
+          role="checkbox"
+          label="Pip sounds"
+          selected={s.settings.sound.effects}
+          onPress={() => s.setSoundEffects(!s.settings.sound.effects)}
+        />
+        <Txt variant="caption">A soft pop when you tap Pip. Silent when your phone is.</Txt>
+      </Card>
+
       <Card tone="sand" flat>
         <Txt variant="heading">Privacy controls</Txt>
         <Txt>📱 Everything stays on this phone.</Txt>

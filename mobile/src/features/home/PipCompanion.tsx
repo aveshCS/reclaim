@@ -3,6 +3,7 @@ import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { Button, Card, Pip, PipMood, ProgressBar, Txt } from '../../components';
 import { colors, radius } from '../../theme/tokens';
 import { haptic } from '../../utils/haptics';
+import { sfx } from '../../utils/sfx';
 import { useReducedMotion } from '../../utils/motion';
 import {
   formatDuration,
@@ -165,6 +166,7 @@ export function PipCompanion({
 
   const onTap = () => {
     haptic.tap();
+    sfx.pop();
     const line = TAP_LINES[taps.current % TAP_LINES.length];
     taps.current += 1;
     setTapLine(line);
