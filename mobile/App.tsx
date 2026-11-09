@@ -3,6 +3,7 @@ import { StatusBar, StyleSheet, View } from 'react-native';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LoadingState } from './src/components';
+import { CloudSync } from './src/cloud/CloudSync';
 import { OnboardingFlow } from './src/features/onboarding/OnboardingFlow';
 import { FocusProvider } from './src/features/focus/FocusContext';
 import { GymProvider } from './src/features/gym/GymContext';
@@ -60,6 +61,7 @@ export default function App() {
           <GymProvider>
             <PauseGateSync />
             <SoundSync />
+            <CloudSync />
             <Gate />
           </GymProvider>
         </FocusProvider>

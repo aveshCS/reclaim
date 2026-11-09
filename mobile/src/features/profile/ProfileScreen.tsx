@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Switch, TextInput, View } from 'react-native';
 import {
   Button,
@@ -32,6 +32,8 @@ export function ProfileScreen() {
   const studies = profile.role === 'student' || profile.role === 'both';
   // Local draft so typing stays smooth; saved when editing ends.
   const [nameDraft, setNameDraft] = useState(profile.name);
+  // Follow the saved name when it changes elsewhere (e.g. restored from backup).
+  useEffect(() => setNameDraft(profile.name), [profile.name]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [historyDeleted, setHistoryDeleted] = useState(false);
 
@@ -68,7 +70,10 @@ export function ProfileScreen() {
         <TextInput
           value={nameDraft}
           onChangeText={setNameDraft}
-          onEndEditing={() => s.setName(nameDraft.trim())}
+          // Use the field's own text: the draft state can lag one keystroke behind.
+          onEndEditing={e =>
+            s.setName((e.nativeEvent.text ?? nameDraft).trim())
+          }
           placeholder="Your first name"
           placeholderTextColor={colors.inkFaint}
           accessibilityLabel="Your first name"
@@ -119,7 +124,9 @@ export function ProfileScreen() {
 
       <Card>
         <Txt variant="heading">Your if-then plan</Txt>
-        <Txt variant="caption">Decide now, act later. Shown on the pause too.</Txt>
+        <Txt variant="caption">
+          Decide now, act later. Shown on the pause too.
+        </Txt>
         {s.settings.plan ? (
           <Txt variant="bodyBold">
             “When {s.settings.plan.when}, I will {s.settings.plan.then}.”
@@ -200,7 +207,9 @@ export function ProfileScreen() {
           selected={s.settings.sound.effects}
           onPress={() => s.setSoundEffects(!s.settings.sound.effects)}
         />
-        <Txt variant="caption">A soft pop when you tap Pip. Silent when your phone is.</Txt>
+        <Txt variant="caption">
+          A soft pop when you tap Pip. Silent when your phone is.
+        </Txt>
       </Card>
 
       <BackupCard />

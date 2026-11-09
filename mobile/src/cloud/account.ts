@@ -167,6 +167,7 @@ export function createCloudAccount(deps: Deps) {
       return () => listeners.delete(l);
     },
     isSignedIn: () => session !== null,
+    userId: () => session?.userId ?? null,
     request,
 
     /** Restores a saved sign-in at app start. No network needed. */

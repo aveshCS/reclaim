@@ -17,6 +17,7 @@ import {
   GymState,
   gymReducer,
   sanitizeGym,
+  WorkoutDay,
   workoutFor,
 } from './gymModel';
 
@@ -30,6 +31,9 @@ type GymApi = {
   today: string;
   /** Save a graded attempt. If `inWorkout`, it also counts towards today's workout. */
   record: (a: RecordInput, inWorkout: boolean, plan?: DrillKind[]) => Attempt;
+  /** Backup bookkeeping (CloudSync). */
+  markSynced: (ids: string[]) => void;
+  mergeRemote: (attempts: Attempt[], workouts: WorkoutDay[]) => void;
 };
 
 const Ctx = createContext<GymApi | null>(null);
@@ -111,6 +115,9 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
         }
         return attempt;
       },
+      markSynced: ids => dispatch({ type: 'markSynced', ids }),
+      mergeRemote: (attempts, workouts) =>
+        dispatch({ type: 'mergeRemote', attempts, workouts }),
     }),
     [ready, state, today],
   );

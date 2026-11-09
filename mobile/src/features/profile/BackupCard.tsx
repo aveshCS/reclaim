@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Card, Txt } from '../../components';
 import { cloudAccount, useCloudAccount } from '../../cloud/account';
+import { syncNow, SyncStatus, useSyncStatus } from '../../cloud/CloudSync';
 import { useSettings } from '../../state/SettingsContext';
 import { colors } from '../../theme/tokens';
 
 /** Optional Google sign-in for backup. Off unless the person chooses it. */
 export function BackupCard() {
   const state = useCloudAccount();
+  const sync = useSyncStatus();
   const s = useSettings();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -38,9 +40,16 @@ export function BackupCard() {
         <Txt variant="heading">Backup</Txt>
         <Txt variant="bodyBold">☁️ Signed in{email ? ` as ${email}` : ''}</Txt>
         <Txt variant="caption">
-          Settings, focus sessions and gym progress can be backed up. App time,
+          Settings, focus sessions and gym progress are backed up. App time,
           reels and the apps and sites you pause stay on this phone.
         </Txt>
+        <Txt variant="bodyBold">{syncLine(sync)}</Txt>
+        {sync.heldBack > 0 ? (
+          <Txt variant="caption">
+            {sync.heldBack} older record{sync.heldBack === 1 ? '' : 's'} can't
+            be backed up and stay on this phone only.
+          </Txt>
+        ) : null}
         {error ? <Txt color={colors.danger}>{error}</Txt> : null}
         {confirmDelete ? (
           <>
@@ -65,6 +74,11 @@ export function BackupCard() {
           </>
         ) : (
           <View style={styles.row}>
+            <Button
+              label={sync.syncing ? 'Backing up…' : 'Back up now'}
+              disabled={busy || sync.syncing}
+              onPress={syncNow}
+            />
             <Button
               label="Sign out"
               variant="secondary"
@@ -110,6 +124,28 @@ export function BackupCard() {
       />
     </Card>
   );
+}
+
+function syncLine(st: SyncStatus): string {
+  if (st.syncing) {
+    return '⏳ Backing up…';
+  }
+  if (st.failed) {
+    return "⚠️ Couldn't reach the backup. It will try again.";
+  }
+  if (st.lastSyncAt) {
+    const restored =
+      st.restoredItems && st.restoredItems > 0
+        ? ` Restored ${st.restoredItems} item${
+            st.restoredItems === 1 ? '' : 's'
+          }.`
+        : '';
+    const t = new Date(st.lastSyncAt);
+    const hh = t.getHours().toString().padStart(2, '0');
+    const mm = t.getMinutes().toString().padStart(2, '0');
+    return `✅ Backed up at ${hh}:${mm}.${restored}`;
+  }
+  return 'Not backed up yet.';
 }
 
 const styles = StyleSheet.create({

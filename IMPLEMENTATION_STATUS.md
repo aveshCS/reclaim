@@ -301,3 +301,12 @@ Lean scope agreed with the developer: Google sign-in plus backup and restore, Ne
 - Not built yet: uploading data (sync queue) and restore.
 - Tests: Jest 206/206, typecheck and lint clean.
 - Emulator note: on this PC the emulator could not resolve names; start it with `-dns-server 8.8.8.8,1.1.1.1`. `hw.keyboard` set to yes in the AVD so the PC keyboard types.
+
+## Backup and restore (2026-11-10, uncommitted)
+- What is backed up: preferences (profile, priorities, focus length, if-then plan, sound, Reset challenge, practice date), consent records, focus sessions, Attention Gym attempts and workout days. Never: tracked/paused apps, website list, reels counter, pause level, permission state, onboarding progress (`src/cloud/backupSettings.ts`).
+- Engine `src/cloud/sync.ts` (plain logic) + `src/cloud/CloudSync.tsx` (runs after sign-in, on return to the app, 4 s after a change, and on "Back up now"). First sync after sign-in restores: history merged by id, workout days combined, backed-up preferences applied. Later syncs upload only what changed. Settings conflict (409) from another phone: this phone's copy wins. Records the server would refuse are held back on the phone (count shown) instead of blocking the batch. Sign-out/delete clears the bookkeeping so a later sign-in restores again.
+- Focus reflection added after upload marks the session pending again so the reflection is backed up.
+- Bugs fixed on the way: Profile name could save one keystroke short ("A" instead of "Avi") when editing ended quickly; name box did not show a name restored from backup.
+- Verified on the emulator against the local server with a real Google account: preferences uploaded with only the allowed keys; a 1-minute focus session uploaded; app data wiped (`pm clear`) then sign-in restored name, role, exam and the session ("Restored 1 item"); "Delete my backup" removed every server row (all 7 tables 0) while the phone kept its data.
+- Not verified on a device: two phones editing at once (tests only); gym data restore (tests only); behaviour with the deployed server.
+- Tests: Jest 216/216, typecheck and lint clean.

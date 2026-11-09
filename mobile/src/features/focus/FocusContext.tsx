@@ -18,6 +18,7 @@ import {
   isDue,
   Reflection,
   sanitizeFocus,
+  SessionRecord,
 } from './focusModel';
 
 export const FOCUS_KEY = 'reclaim.focus.v1';
@@ -44,6 +45,9 @@ type FocusApi = {
   reflect: (id: string, r: Reflection) => void;
   dismissFinished: () => void;
   discard: () => void;
+  /** Backup bookkeeping (CloudSync). */
+  markSynced: (ids: string[]) => void;
+  mergeRemote: (records: SessionRecord[]) => void;
 };
 
 const Ctx = createContext<FocusApi | null>(null);
@@ -152,6 +156,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
       reflect: (id, r) => dispatch({ type: 'reflect', id, reflection: r }),
       dismissFinished: () => setJustFinished(null),
       discard: () => dispatch({ type: 'discard' }),
+      markSynced: ids => dispatch({ type: 'markSynced', ids }),
+      mergeRemote: records => dispatch({ type: 'mergeRemote', records }),
     }),
     [ready, state, now, justFinished],
   );

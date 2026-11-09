@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { applyBackup } from '../cloud/backupSettings';
 import { loadSettings, saveSettings } from '../services/settingsStorage';
 import {
   AgeBandId,
@@ -63,6 +64,8 @@ type SettingsApi = {
   clearStrictNow: () => void;
   setSoundEffects: (on: boolean) => void;
   setBackupConsent: (granted: boolean) => void;
+  /** Restore: put backed-up preferences onto this phone. */
+  restoreBackup: (data: Record<string, unknown>) => void;
   setPlan: (p: IfThenPlan | null) => void;
   startReset: (startDate: string, limitMin: number) => void;
   setResetScore: (which: 'baseline' | 'final', score: number) => void;
@@ -78,7 +81,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // The "win back your time" onboarding steps need the Android pause service.
   platformCaps.protect = pauseGate.isAvailable();
   platformCaps.keepAlive =
-    platformCaps.protect && KEEP_ALIVE_MAKERS.includes(pauseGate.maker?.() ?? '');
+    platformCaps.protect &&
+    KEEP_ALIVE_MAKERS.includes(pauseGate.maker?.() ?? '');
   const [settings, dispatch] = useReducer(settingsReducer, DEFAULT_SETTINGS);
   const [ready, setReady] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -156,18 +160,26 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'setReels', enabled, at: new Date().toISOString() }),
       setReelLimit: limit => dispatch({ type: 'setReelLimit', limit }),
       setReelPip: show => dispatch({ type: 'setReelPip', show }),
-      setProtectChoice: choice => dispatch({ type: 'setProtectChoice', choice }),
+      setProtectChoice: choice =>
+        dispatch({ type: 'setProtectChoice', choice }),
       requestLevel: level =>
         dispatch({ type: 'requestLevel', level, now: Date.now() }),
       startStrict: until =>
         dispatch({ type: 'startStrict', until, now: Date.now() }),
-      endStrictEarly: () => dispatch({ type: 'endStrictEarly', now: Date.now() }),
+      endStrictEarly: () =>
+        dispatch({ type: 'endStrictEarly', now: Date.now() }),
       cancelPendingLevel: () => dispatch({ type: 'cancelPendingLevel' }),
       setLevelNow: level => dispatch({ type: 'setLevelNow', level }),
       clearStrictNow: () => dispatch({ type: 'clearStrictNow' }),
       setSoundEffects: on => dispatch({ type: 'setSoundEffects', on }),
+      restoreBackup: data =>
+        dispatch({ type: 'hydrate', settings: applyBackup(settings, data) }),
       setBackupConsent: granted =>
-        dispatch({ type: 'setBackupConsent', granted, at: new Date().toISOString() }),
+        dispatch({
+          type: 'setBackupConsent',
+          granted,
+          at: new Date().toISOString(),
+        }),
       setPlan: plan => dispatch({ type: 'setPlan', plan }),
       startReset: (startDate, limitMin) =>
         dispatch({ type: 'startReset', startDate, limitMin }),

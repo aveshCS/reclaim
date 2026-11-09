@@ -198,12 +198,66 @@ export type GymAction =
       workoutDate: string | null;
       /** The plan shown to the user, stored with the first attempt of the day. */
       plan?: DrillKind[];
-    };
+    }
+  /** Backup: these attempts reached the server. */
+  | { type: 'markSynced'; ids: string[] }
+  /** Restore: attempts and workout days from the backup. */
+  | { type: 'mergeRemote'; attempts: Attempt[]; workouts: WorkoutDay[] };
+
+/** Two copies of the same day (two phones): keep everything either one finished. */
+function mergeDay(a: WorkoutDay, b: WorkoutDay): WorkoutDay {
+  const plan = a.plan.length ? a.plan : b.plan;
+  const done = [...a.done, ...b.done.filter(d => !a.done.includes(d))];
+  const times = [a.completedAt, b.completedAt].filter(
+    (t): t is number => typeof t === 'number',
+  );
+  return {
+    date: a.date,
+    plan,
+    done,
+    completedAt: times.length ? Math.min(...times) : null,
+  };
+}
 
 export function gymReducer(state: GymState, action: GymAction): GymState {
   switch (action.type) {
     case 'hydrate':
       return action.state;
+    case 'markSynced': {
+      const ids = new Set(action.ids);
+      let changed = false;
+      const attempts = state.attempts.map(a => {
+        if (!ids.has(a.id) || a.sync === 'synced') {
+          return a;
+        }
+        changed = true;
+        return { ...a, sync: 'synced' as const };
+      });
+      return changed ? { ...state, attempts } : state;
+    }
+    case 'mergeRemote': {
+      const have = new Set(state.attempts.map(a => a.id));
+      const added = action.attempts
+        .filter(a => !have.has(a.id))
+        .map(a => ({ ...a, sync: 'synced' as const }));
+      const workouts = { ...state.workouts };
+      let changed = added.length > 0;
+      for (const w of action.workouts) {
+        const mine = workouts[w.date];
+        const next = mine ? mergeDay(mine, w) : w;
+        if (JSON.stringify(next) !== JSON.stringify(mine)) {
+          workouts[w.date] = next;
+          changed = true;
+        }
+      }
+      if (!changed) {
+        return state;
+      }
+      const attempts = [...state.attempts, ...added]
+        .sort((a, b) => a.at - b.at)
+        .slice(-ATTEMPT_LIMIT);
+      return { ...state, attempts, workouts };
+    }
     case 'record': {
       if (state.attempts.some(a => a.id === action.attempt.id)) {
         return state; // saved once

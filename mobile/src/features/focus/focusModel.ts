@@ -103,7 +103,11 @@ export type FocusAction =
   /** Attach a reflection to a saved session. Only the first reflection is kept. */
   | { type: 'reflect'; id: string; reflection: Reflection }
   /** Throw away the active session without saving (e.g. an accidental start). */
-  | { type: 'discard' };
+  | { type: 'discard' }
+  /** Backup: these records reached the server. */
+  | { type: 'markSynced'; ids: string[] }
+  /** Restore: records from the backup that this phone doesn't have yet. */
+  | { type: 'mergeRemote'; records: SessionRecord[] };
 
 function cleanNote(n: string | undefined): string | undefined {
   const t = (n ?? '').trim().slice(0, 500);
@@ -215,6 +219,7 @@ export function focusReducer(
         changed = true;
         return {
           ...r,
+          sync: 'pending' as const, // send again with the reflection
           reflection: {
             progress: action.reflection.progress,
             interruptions: action.reflection.interruptions,
@@ -227,6 +232,41 @@ export function focusReducer(
 
     case 'discard':
       return { ...state, active: null };
+
+    case 'markSynced': {
+      const ids = new Set(action.ids);
+      let changed = false;
+      const history = state.history.map(r => {
+        if (!ids.has(r.id) || r.sync === 'synced') {
+          return r;
+        }
+        changed = true;
+        return { ...r, sync: 'synced' as const };
+      });
+      return changed ? { ...state, history } : state;
+    }
+
+    case 'mergeRemote': {
+      const byId = new Map(state.history.map(r => [r.id, r]));
+      let changed = false;
+      for (const remote of action.records) {
+        const mine = byId.get(remote.id);
+        if (!mine) {
+          byId.set(remote.id, { ...remote, sync: 'synced' });
+          changed = true;
+        } else if (!mine.reflection && remote.reflection) {
+          byId.set(remote.id, { ...mine, reflection: remote.reflection });
+          changed = true;
+        }
+      }
+      if (!changed) {
+        return state;
+      }
+      const history = [...byId.values()]
+        .sort((a, b) => a.startedAt - b.startedAt)
+        .slice(-HISTORY_LIMIT);
+      return { ...state, history };
+    }
   }
 }
 
